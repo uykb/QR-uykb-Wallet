@@ -23,7 +23,11 @@ typedef struct __attribute__((aligned(4)))
     uint8_t incorrectPinCountMax;
     uint32_t lockScreenTimeout;
     bool signPinRequired;
+    uint8_t language;
+    uint8_t iv[12];
+    uint8_t tag[16];
     uint8_t pinPadding[32];
+    uint32_t cooldownUntil;
     char privateKey[PRIVATE_KEY_SIZE];
     uint32_t checksum;
 } wallet_data_version_1_t;

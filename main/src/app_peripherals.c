@@ -287,7 +287,7 @@ static esp_err_t lvgl_init(void)
         },
         .flags = {
             .buff_dma = true,
-            .buff_spiram = true,
+            .buff_spiram = false,
             .swap_bytes = true,
         }};
     lvgl_disp = lvgl_port_add_disp(&disp_cfg);

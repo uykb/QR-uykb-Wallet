@@ -627,4 +627,63 @@ extern "C"
         ur::UR *ur = get_shared_ur_ptr(data->ur);
         return ur->type().c_str();
     }
+
+    int decode_crypto_psbt(UR _ur, char **psbt_b64)
+    {
+        ur::UR *ur = get_shared_ur_ptr(_ur);
+        if (strcmp(ur->type().c_str(), CRYPTO_PSBT) != 0)
+        {
+            return 1;
+        }
+        const uint8_t *payload_ptr = const_cast<uint8_t *>(ur->cbor().data());
+        size_t payload_len = ur->cbor().size();
+        if (payload_len == 0)
+        {
+            return 2;
+        }
+        CborParser parser;
+        CborValue it;
+        cbor_parser_init(payload_ptr, payload_len, 0, &parser, &it);
+        if (cbor_value_is_byte_string(&it))
+        {
+            size_t len = 0;
+            cbor_value_calculate_string_length(&it, &len);
+            uint8_t *bytes = (uint8_t *)malloc(len);
+            cbor_value_copy_byte_string(&it, bytes, &len, nullptr);
+            std::string b64 = toBase64(bytes, len);
+            free(bytes);
+            *psbt_b64 = (char *)malloc(b64.length() + 1);
+            strcpy(*psbt_b64, b64.c_str());
+            return 0;
+        }
+        else
+        {
+            std::string b64 = toBase64(payload_ptr, payload_len);
+            *psbt_b64 = (char *)malloc(b64.length() + 1);
+            strcpy(*psbt_b64, b64.c_str());
+            return 0;
+        }
+    }
+
+    void generate_crypto_psbt_signature(const char *signed_psbt_b64, char **output)
+    {
+        size_t raw_len = fromBase64Length(signed_psbt_b64, strlen(signed_psbt_b64));
+        uint8_t *raw_bytes = (uint8_t *)malloc(raw_len + 1);
+        size_t actual_len = fromBase64(signed_psbt_b64, strlen(signed_psbt_b64), raw_bytes, raw_len);
+
+        size_t buf_len = actual_len + 32;
+        uint8_t *buf = (uint8_t *)malloc(buf_len);
+        CborEncoder encoder;
+        cbor_encoder_init(&encoder, buf, buf_len, 0);
+        cbor_encode_byte_string(&encoder, raw_bytes, actual_len);
+        size_t cbor_len = cbor_encoder_get_buffer_size(&encoder, buf);
+        free(raw_bytes);
+
+        ur::ByteVector vec(buf, buf + cbor_len);
+        free(buf);
+        ur::UR ur_psbt(CRYPTO_PSBT, vec);
+        std::string encoded = ur::UREncoder::encode(ur_psbt);
+        *output = (char *)malloc(encoded.length() + 1);
+        strcpy(*output, encoded.c_str());
+    }
 }

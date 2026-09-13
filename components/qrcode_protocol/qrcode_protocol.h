@@ -17,6 +17,7 @@
 #define METAMASK_ETH_SIGN_REQUEST "eth-sign-request"
 #define METAMASK_CRYPTO_HDKEY "crypto-hdkey"
 #define METAMASK_ETH_SIGNATURE "eth-signature"
+#define CRYPTO_PSBT "crypto-psbt"
 
 #define KEY_DATA_TYPE_SIGN_TRANSACTION 1
 #define KEY_DATA_TYPE_SIGN_TYPED_DATA 2
@@ -65,6 +66,9 @@ extern "C"
     void generate_metamask_eth_signature(uint8_t *uuid_str, uint8_t signature[65], char **output);
     int decode_metamask_sign_request(UR ur, metamask_sign_request_t *request);
     void free_metamask_sign_request(metamask_sign_request_t *request);
+
+    int decode_crypto_psbt(UR ur, char **psbt_b64);
+    void generate_crypto_psbt_signature(const char *signed_psbt_b64, char **output);
 
     URType ur_type(const char *url);
     void qrcode_protocol_bc_ur_init(qrcode_protocol_bc_ur_data_t *data);

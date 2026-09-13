@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <string>
 #include <Bitcoin.h>
+#include <PSBT.h>
 #include <Hash.h>
 #include <utility/trezor/sha3.h>
 #include <utility/trezor/secp256k1.h>
@@ -155,6 +156,63 @@ extern "C"
         char *cstr = (char *)malloc(strlen(buf) + 1);
         strcpy(cstr, buf);
         return cstr;
+    }
+    bool wallet_btc_sign_psbt(Wallet wallet, const char *psbt_b64_in, char **psbt_b64_out, char **summary_out)
+    {
+        if (psbt_b64_in == NULL || psbt_b64_out == NULL)
+        {
+            return false;
+        }
+        HDPrivateKey *_wallet = get_shared_ptr(wallet);
+        if (_wallet == NULL)
+        {
+            return false;
+        }
+
+        PSBT psbt;
+        size_t parsed = psbt.parseBase64(std::string(psbt_b64_in));
+        if (parsed == 0 || !psbt.isValid())
+        {
+            ESP_LOGE(TAG, "Failed to parse PSBT base64");
+            return false;
+        }
+
+        /* Build summary of recipient outputs and amounts */
+        std::string summary = "Bitcoin PSBT\n";
+        uint64_t total_out = 0;
+        for (size_t i = 0; i < psbt.tx.outputsNumber; i++)
+        {
+            char addr[64] = {0};
+            psbt.tx.txOuts[i].address(addr, sizeof(addr));
+            uint64_t sats = psbt.tx.txOuts[i].amount;
+            total_out += sats;
+            char out_buf[128];
+            snprintf(out_buf, sizeof(out_buf), "To: %s\nAmount: %.8f BTC\n", addr, (double)sats / 1e8);
+            summary += out_buf;
+        }
+
+        uint64_t fee = psbt.fee();
+        if (fee > 0)
+        {
+            char fee_buf[64];
+            snprintf(fee_buf, sizeof(fee_buf), "Fee: %llu sats", (unsigned long long)fee);
+            summary += fee_buf;
+        }
+
+        if (summary_out != NULL)
+        {
+            *summary_out = (char *)malloc(summary.length() + 1);
+            strcpy(*summary_out, summary.c_str());
+        }
+
+        /* Sign PSBT with master root HD key */
+        uint8_t sigs = psbt.sign(*_wallet);
+        ESP_LOGI(TAG, "PSBT signed: %d signatures generated", (int)sigs);
+
+        std::string signed_b64 = psbt.toBase64();
+        *psbt_b64_out = (char *)malloc(signed_b64.length() + 1);
+        strcpy(*psbt_b64_out, signed_b64.c_str());
+        return true;
     }
     Wallet wallet_derive_eth(Wallet wallet, unsigned int index)
     {

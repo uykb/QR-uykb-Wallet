@@ -319,6 +319,31 @@ static char *ctrl_sign_get_signature(void)
             ESP_LOGE(TAG, "decode_metamask_sign_typed_transaction_request error: %d", err);
         }
     }
+    else if (strcmp(type, CRYPTO_PSBT) == 0 || strcasecmp(type, "crypto-psbt") == 0)
+    {
+        char *psbt_b64 = NULL;
+        int err = decode_crypto_psbt(qrcode_protocol_bc_ur_data->ur, &psbt_b64);
+        if (err == 0 && psbt_b64 != NULL)
+        {
+            char *signed_psbt_b64 = NULL;
+            char *summary = NULL;
+            if (wallet_btc_sign_psbt(wallet, psbt_b64, &signed_psbt_b64, &summary))
+            {
+                generate_crypto_psbt_signature(signed_psbt_b64, &qr_code);
+                free(signed_psbt_b64);
+                if (summary) free(summary);
+            }
+            else
+            {
+                ESP_LOGE(TAG, "wallet_btc_sign_psbt failed");
+            }
+            free(psbt_b64);
+        }
+        else
+        {
+            ESP_LOGE(TAG, "decode_crypto_psbt error: %d", err);
+        }
+    }
     else
     {
         ESP_LOGI(TAG, "Unsupported type: %s", type);

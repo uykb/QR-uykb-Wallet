@@ -142,6 +142,11 @@ static void qrScannerTask(void *parameters)
     img_buffer.data_size = line_size * width; // fb->len;
 
     esp_code_scanner_config_t config = {ESP_CODE_SCANNER_MODE_FAST, ESP_CODE_SCANNER_IMAGE_RGB565, fb->width, fb->height};
+    esp_image_scanner_t *esp_scn = esp_code_scanner_create();
+    if (esp_scn != NULL)
+    {
+        esp_code_scanner_set_config(esp_scn, config);
+    }
     esp_camera_fb_return(fb);
 
     bool scan_success = false;
@@ -151,6 +156,7 @@ static void qrScannerTask(void *parameters)
     uint32_t LOCK_SCREEN_TIMEOUT_MS = walletData.lockScreenTimeout;
 
     TickType_t time_start = xTaskGetTickCount();
+    uint32_t frame_count = 0;
 
     LOG_STACK_USAGE_TASK_INIT(qrScannerTask);
 
@@ -160,6 +166,7 @@ static void qrScannerTask(void *parameters)
         if (fb == NULL)
         {
             ESP_LOGE(TAG, "camera get failed");
+            vTaskDelay(pdMS_TO_TICKS(10));
             continue;
         }
         if (peripherals_config->camera_module_config.swap_x || peripherals_config->camera_module_config.swap_y)
@@ -225,26 +232,10 @@ static void qrScannerTask(void *parameters)
         }
 
         ui_home_update_camera_preview(&img_buffer);
-        vTaskDelay(pdMS_TO_TICKS(15));
 
-        bool debug_mode = false;
-        if (debug_mode)
+        /* Run scanner decoding using the persistent scanner instance */
+        if (esp_scn != NULL)
         {
-            char *qr_data = "UR:ETH-SIGN-REQUEST/OLADTPDAGDFDFDOXCPJOLRGTOTNYKIAHSFRTKSJKJTAOHDEYAOWTLSPKENOSASLRHKISDLAELRJKTBIOTPLFGMAYMWNEVOESHLIOINKSENQZNEGMFTGYFPOSYAZMTIATIMLNHTWFBEKNFZAELARTAXAAAACYAEPKENOSAHTAADDYOEADLECSDWYKCSFNYKAEYKAEWKAEWKAOCYWLDAQZPRAMGHNEVOESHLIOINKSENQZNEGMFTGYFPOSYAZMTIATIMLTHNIHIM";
-            qrcode_protocol_bc_ur_receive(qrcode_protocol_bc_ur_data, qr_data);
-            if (qrcode_protocol_bc_ur_is_success(qrcode_protocol_bc_ur_data))
-            {
-                // ESP_LOGI(TAG, "scan success");
-                scan_success = true;
-                ui_home_stop_qr_scan();
-                ctrl_sign_init(wallet, qrcode_protocol_bc_ur_data);
-            }
-        }
-        else
-        {
-            // Decode Progress
-            esp_image_scanner_t *esp_scn = esp_code_scanner_create();
-            esp_code_scanner_set_config(esp_scn, config);
             int decoded_num = esp_code_scanner_scan_image(esp_scn, img_buffer.data);
             if (decoded_num)
             {
@@ -253,7 +244,6 @@ static void qrScannerTask(void *parameters)
                 esp_code_scanner_symbol_t result = esp_code_scanner_result(esp_scn);
                 if (result.data != NULL && strlen(result.data) > 0)
                 {
-                    // ESP_LOGI(TAG, "scan result:%s", result.data);
                     // Decode UR
                     qrcode_protocol_bc_ur_receive(qrcode_protocol_bc_ur_data, result.data);
                     size_t progress = qrcode_protocol_bc_ur_progress(qrcode_protocol_bc_ur_data);
@@ -264,23 +254,20 @@ static void qrScannerTask(void *parameters)
                     }
                     if (qrcode_protocol_bc_ur_is_success(qrcode_protocol_bc_ur_data))
                     {
-                        // ESP_LOGI(TAG, "scan success");
                         scan_success = true;
                         ui_home_stop_qr_scan();
                         ctrl_sign_init(wallet, qrcode_protocol_bc_ur_data);
                     }
                 }
             }
-            /* esp_code_scanner_symbol_t unavailable after esp_code_scanner_destroy */
-            esp_code_scanner_destroy(esp_scn);
         }
 
         esp_camera_fb_return(fb);
-        vTaskDelay(pdMS_TO_TICKS(5));
+        vTaskDelay(pdMS_TO_TICKS(1));
+        frame_count++;
 
         if ((xTaskGetTickCount() - time_start) * portTICK_PERIOD_MS > LOCK_SCREEN_TIMEOUT_MS)
         {
-            // lock screen
             time_start = xTaskGetTickCount();
             scan_task_status_request = false;
             lv_async_call(ctrl_home_lock_screen, NULL);
@@ -289,12 +276,11 @@ static void qrScannerTask(void *parameters)
         LOG_STACK_USAGE_TASK(NULL, qrScannerTask);
     }
 
-    if (!scan_success)
+    if (esp_scn != NULL)
     {
-        qrcode_protocol_bc_ur_free(qrcode_protocol_bc_ur_data);
-        free(qrcode_protocol_bc_ur_data);
-        qrcode_protocol_bc_ur_data = NULL;
-    } // if scan success, ctrl_sign_init will free qrcode_protocol_bc_ur_data
+        esp_code_scanner_destroy(esp_scn);
+        esp_scn = NULL;
+    }
 
     ui_home_update_camera_preview(NULL);
     ui_home_set_qr_scan_progress(0);

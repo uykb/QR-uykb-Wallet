@@ -52,16 +52,21 @@ void ui_toast_show(const char *text, int duration)
         lv_obj_t *screen = lv_scr_act();
         lv_obj_t *mask_view = lv_obj_create(screen);
         size_t width = lv_obj_get_width(screen);
-        size_t label_width = width * 0.7;
+        size_t label_width = width * 0.82;
         lv_obj_set_size(mask_view, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-        lv_obj_set_style_bg_color(mask_view, lv_color_hex(0x111111), 0);
+        lv_obj_set_style_bg_color(mask_view, lv_color_hex(0x1a202c), 0);
         lv_obj_set_style_bg_opa(mask_view, LV_OPA_90, 0);
-        lv_obj_align(mask_view, LV_ALIGN_BOTTOM_MID, 0, -30);
+        lv_obj_set_style_border_width(mask_view, 1, 0);
+        lv_obj_set_style_border_color(mask_view, lv_color_hex(0x4a5568), 0);
+        lv_obj_set_style_radius(mask_view, 8, 0);
+        lv_obj_set_style_pad_all(mask_view, 10, 0);
+        lv_obj_align(mask_view, LV_ALIGN_BOTTOM_MID, 0, -25);
         lv_obj_t *label = lv_label_create(mask_view);
         lv_label_set_text(label, text);
         lv_obj_set_size(label, label_width, LV_SIZE_CONTENT);
         lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
         lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
+        lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_center(label);
 
         if (duration > 0)

@@ -15,7 +15,7 @@ extern "C"
      * GLOBAL PROTOTYPES
      **********************/
     void ui_connect_qrcode_init(ctrl_home_network_data_t *network_data);
-    void ui_connect_qrcode_destroy(void);
+    void ui_connect_qrcode_destroy(void *arg);
 
 #ifdef __cplusplus
     extern "C"

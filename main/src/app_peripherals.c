@@ -5,7 +5,6 @@
 #include "esp_system.h"
 #include "esp_camera.h"
 #include "esp_check.h"
-#include "driver/i2c.h"
 #include "driver/gpio.h"
 #include "driver/spi_master.h"
 #include "esp_lcd_panel_io.h"
@@ -29,6 +28,9 @@
 #include "esp_lcd_touch_gt1151.h"
 #include "esp_lcd_touch_gt911.h"
 #include "esp_lcd_touch_tt21100.h"
+
+/* New I2C master driver for ESP-IDF v5.x */
+#include "driver/i2c_master.h"
 
 /*********************
  *      DEFINES
@@ -149,6 +151,10 @@ static esp_err_t lcd_init(void)
 
     esp_lcd_panel_reset(lcd_panel);
     esp_lcd_panel_init(lcd_panel);
+    if (config->lcd_module == LCD_MODULE_ST7789)
+    {
+        esp_lcd_panel_invert_color(lcd_panel, true);
+    }
     esp_lcd_panel_mirror(lcd_panel, false, false);
     esp_lcd_panel_disp_on_off(lcd_panel, true);
 
@@ -172,16 +178,18 @@ err:
 static esp_err_t touch_init(void)
 {
     peripherals_config_t *config = app_peripherals_read();
-    /* Initilize I2C */
-    const i2c_config_t i2c_conf = {
-        .mode = I2C_MODE_MASTER,
+
+    /* Initialize I2C using new master bus API (ESP-IDF v5.x) */
+    i2c_master_bus_config_t i2c_mst_config = {
+        .i2c_port = config->touch_module_config.i2c_num,
         .sda_io_num = config->touch_module_config.i2c_sda,
-        .sda_pullup_en = GPIO_PULLUP_DISABLE,
         .scl_io_num = config->touch_module_config.i2c_scl,
-        .scl_pullup_en = GPIO_PULLUP_DISABLE,
-        .master.clk_speed = config->touch_module_config.i2c_clk_hz};
-    ESP_RETURN_ON_ERROR(i2c_param_config(config->touch_module_config.i2c_num, &i2c_conf), TAG, "I2C configuration failed");
-    ESP_RETURN_ON_ERROR(i2c_driver_install(config->touch_module_config.i2c_num, i2c_conf.mode, 0, 0, 0), TAG, "I2C initialization failed");
+        .clk_source = I2C_CLK_SRC_DEFAULT,
+        .glitch_ignore_cnt = 7,
+        .flags.enable_internal_pullup = true,
+    };
+    i2c_master_bus_handle_t i2c_bus = NULL;
+    ESP_RETURN_ON_ERROR(i2c_new_master_bus(&i2c_mst_config, &i2c_bus), TAG, "I2C master bus init failed");
 
     /* Initialize touch HW */
     const esp_lcd_touch_config_t tp_cfg = {
@@ -202,38 +210,44 @@ static esp_err_t touch_init(void)
     esp_lcd_panel_io_handle_t tp_io_handle = NULL;
     if (config->touch_module == TOUCH_MODULE_CST816S)
     {
-        const esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_CST816S_CONFIG();
-        ESP_RETURN_ON_ERROR(esp_lcd_new_panel_io_i2c((esp_lcd_i2c_bus_handle_t)config->touch_module_config.i2c_num, &tp_io_config, &tp_io_handle), TAG, "");
+        esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_CST816S_CONFIG();
+        tp_io_config.scl_speed_hz = config->touch_module_config.i2c_clk_hz;
+        ESP_RETURN_ON_ERROR(esp_lcd_new_panel_io_i2c(i2c_bus, &tp_io_config, &tp_io_handle), TAG, "");
         return esp_lcd_touch_new_i2c_cst816s(tp_io_handle, &tp_cfg, &touch_handle);
     }
     else if (config->touch_module == TOUCH_MODULE_FT5X06)
     {
-        const esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_FT5x06_CONFIG();
-        ESP_RETURN_ON_ERROR(esp_lcd_new_panel_io_i2c((esp_lcd_i2c_bus_handle_t)config->touch_module_config.i2c_num, &tp_io_config, &tp_io_handle), TAG, "");
+        esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_FT5x06_CONFIG();
+        tp_io_config.scl_speed_hz = config->touch_module_config.i2c_clk_hz;
+        ESP_RETURN_ON_ERROR(esp_lcd_new_panel_io_i2c(i2c_bus, &tp_io_config, &tp_io_handle), TAG, "");
         return esp_lcd_touch_new_i2c_ft5x06(tp_io_handle, &tp_cfg, &touch_handle);
     }
     else if (config->touch_module == TOUCH_MODULE_FT6X36)
     {
-        const esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_FT5x06_CONFIG();
-        ESP_RETURN_ON_ERROR(esp_lcd_new_panel_io_i2c((esp_lcd_i2c_bus_handle_t)config->touch_module_config.i2c_num, &tp_io_config, &tp_io_handle), TAG, "");
+        esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_FT5x06_CONFIG();
+        tp_io_config.scl_speed_hz = config->touch_module_config.i2c_clk_hz;
+        ESP_RETURN_ON_ERROR(esp_lcd_new_panel_io_i2c(i2c_bus, &tp_io_config, &tp_io_handle), TAG, "");
         return esp_lcd_touch_new_i2c_ft5x06(tp_io_handle, &tp_cfg, &touch_handle);
     }
     else if (config->touch_module == TOUCH_MODULE_GT1151)
     {
-        const esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_GT1151_CONFIG();
-        ESP_RETURN_ON_ERROR(esp_lcd_new_panel_io_i2c((esp_lcd_i2c_bus_handle_t)config->touch_module_config.i2c_num, &tp_io_config, &tp_io_handle), TAG, "");
+        esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_GT1151_CONFIG();
+        tp_io_config.scl_speed_hz = config->touch_module_config.i2c_clk_hz;
+        ESP_RETURN_ON_ERROR(esp_lcd_new_panel_io_i2c(i2c_bus, &tp_io_config, &tp_io_handle), TAG, "");
         return esp_lcd_touch_new_i2c_gt1151(tp_io_handle, &tp_cfg, &touch_handle);
     }
     else if (config->touch_module == TOUCH_MODULE_GT911)
     {
-        const esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_GT911_CONFIG();
-        ESP_RETURN_ON_ERROR(esp_lcd_new_panel_io_i2c((esp_lcd_i2c_bus_handle_t)config->touch_module_config.i2c_num, &tp_io_config, &tp_io_handle), TAG, "");
+        esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_GT911_CONFIG();
+        tp_io_config.scl_speed_hz = config->touch_module_config.i2c_clk_hz;
+        ESP_RETURN_ON_ERROR(esp_lcd_new_panel_io_i2c(i2c_bus, &tp_io_config, &tp_io_handle), TAG, "");
         return esp_lcd_touch_new_i2c_gt911(tp_io_handle, &tp_cfg, &touch_handle);
     }
     else if (config->touch_module == TOUCH_MODULE_TT21100)
     {
-        const esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_TT21100_CONFIG();
-        ESP_RETURN_ON_ERROR(esp_lcd_new_panel_io_i2c((esp_lcd_i2c_bus_handle_t)config->touch_module_config.i2c_num, &tp_io_config, &tp_io_handle), TAG, "");
+        esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_TT21100_CONFIG();
+        tp_io_config.scl_speed_hz = config->touch_module_config.i2c_clk_hz;
+        ESP_RETURN_ON_ERROR(esp_lcd_new_panel_io_i2c(i2c_bus, &tp_io_config, &tp_io_handle), TAG, "");
         return esp_lcd_touch_new_i2c_tt21100(tp_io_handle, &tp_cfg, &touch_handle);
     }
     else
@@ -606,13 +620,15 @@ peripherals_config_t *app_peripherals_read()
         bool ret = littlefs_read_file(OEM_PARTITION_LABEL, OEM_CONFIG_VERSION_FILE, &version_buffer, &version_size);
         if (!ret)
         {
-            return NULL;
+            ESP_LOGW(TAG, "No OEM config found, using default config for ESP32-S3-Touch-LCD-2");
+            goto use_default;
         }
         if (version_size != 10)
         {
             free(version_buffer);
             version_buffer = NULL;
-            return NULL;
+            ESP_LOGW(TAG, "Invalid OEM config version, using default config");
+            goto use_default;
         }
         cached_version = atoi((char *)version_buffer);
         free(version_buffer);
@@ -624,13 +640,15 @@ peripherals_config_t *app_peripherals_read()
         ret = littlefs_read_file(OEM_PARTITION_LABEL, OEM_CONFIG_PERIPHERALS_FILE, &config_buffer, &size);
         if (!ret)
         {
-            return NULL;
+            ESP_LOGW(TAG, "No peripherals config found, using default config");
+            goto use_default;
         }
         if (size != sizeof(peripherals_config_t))
         {
             free(config_buffer);
             config_buffer = NULL;
-            return NULL;
+            ESP_LOGW(TAG, "Invalid peripherals config size, using default config");
+            goto use_default;
         }
         memcpy(&cached_peripherals_config, config_buffer, size);
         free(config_buffer);
@@ -640,5 +658,75 @@ peripherals_config_t *app_peripherals_read()
     {
         return NULL;
     }
+    return &cached_peripherals_config;
+
+use_default:
+    memset(&cached_peripherals_config, 0, sizeof(peripherals_config_t));
+
+    /* Camera - custom module for ESP32-S3-Touch-LCD-2 */
+    cached_peripherals_config.camera_module = CAMERA_MODULE_CUSTOM;
+    cached_peripherals_config.camera_module_custom_config.pin_pwdn = 17;
+    cached_peripherals_config.camera_module_custom_config.pin_reset = -1;
+    cached_peripherals_config.camera_module_custom_config.pin_xclk = 8;
+    cached_peripherals_config.camera_module_custom_config.pin_sioc = 16;
+    cached_peripherals_config.camera_module_custom_config.pin_siod = 21;
+    cached_peripherals_config.camera_module_custom_config.pin_d0 = 12;
+    cached_peripherals_config.camera_module_custom_config.pin_d1 = 13;
+    cached_peripherals_config.camera_module_custom_config.pin_d2 = 15;
+    cached_peripherals_config.camera_module_custom_config.pin_d3 = 11;
+    cached_peripherals_config.camera_module_custom_config.pin_d4 = 14;
+    cached_peripherals_config.camera_module_custom_config.pin_d5 = 10;
+    cached_peripherals_config.camera_module_custom_config.pin_d6 = 7;
+    cached_peripherals_config.camera_module_custom_config.pin_d7 = 2;
+    cached_peripherals_config.camera_module_custom_config.pin_vsync = 6;
+    cached_peripherals_config.camera_module_custom_config.pin_href = 4;
+    cached_peripherals_config.camera_module_custom_config.pin_pclk = 9;
+
+    cached_peripherals_config.camera_module_config.xclk_freq_hz = 20000000;
+    cached_peripherals_config.camera_module_config.pixelformat = PIXFORMAT_RGB565;
+    cached_peripherals_config.camera_module_config.framesize = FRAMESIZE_240X240;
+    cached_peripherals_config.camera_module_config.fb_count = 2;
+    cached_peripherals_config.camera_module_config.swap_x = 0;
+    cached_peripherals_config.camera_module_config.swap_y = 1;
+
+    /* LCD - ST7789 240x320 */
+    cached_peripherals_config.lcd_module = LCD_MODULE_ST7789;
+    cached_peripherals_config.lcd_module_pin_config.pin_sclk = 39;
+    cached_peripherals_config.lcd_module_pin_config.pin_mosi = 38;
+    cached_peripherals_config.lcd_module_pin_config.pin_rst = -1;
+    cached_peripherals_config.lcd_module_pin_config.pin_dc = 42;
+    cached_peripherals_config.lcd_module_pin_config.pin_cs = 45;
+    cached_peripherals_config.lcd_module_pin_config.pin_bl = 1;
+
+    cached_peripherals_config.lcd_module_config.h_res = 240;
+    cached_peripherals_config.lcd_module_config.v_res = 320;
+    cached_peripherals_config.lcd_module_config.swap_xy = false;
+    cached_peripherals_config.lcd_module_config.mirror_x = false;
+    cached_peripherals_config.lcd_module_config.mirror_y = false;
+    cached_peripherals_config.lcd_module_config.gpio_bl_pwm = false;
+    cached_peripherals_config.lcd_module_config.spi_num = SPI2_HOST;
+    cached_peripherals_config.lcd_module_config.pixel_clk_hz = 80 * 1000 * 1000;
+    cached_peripherals_config.lcd_module_config.cmd_bits = 8;
+    cached_peripherals_config.lcd_module_config.param_bits = 8;
+    cached_peripherals_config.lcd_module_config.color_space = ESP_LCD_COLOR_SPACE_BGR;
+    cached_peripherals_config.lcd_module_config.bits_per_pixel = 16;
+    cached_peripherals_config.lcd_module_config.draw_buff_double = true;
+    cached_peripherals_config.lcd_module_config.draw_buff_height = 50;
+    cached_peripherals_config.lcd_module_config.bl_on_level = 1;
+
+    /* Touch - CST816S */
+    cached_peripherals_config.touch_module = TOUCH_MODULE_CST816S;
+    cached_peripherals_config.touch_module_config.i2c_scl = 47;
+    cached_peripherals_config.touch_module_config.i2c_sda = 48;
+    cached_peripherals_config.touch_module_config.gpio_int = -1;
+    cached_peripherals_config.touch_module_config.i2c_clk_hz = 400000;
+    cached_peripherals_config.touch_module_config.i2c_num = I2C_NUM_0;
+    cached_peripherals_config.touch_module_config.swap_xy = false;
+    cached_peripherals_config.touch_module_config.mirror_x = false;
+    cached_peripherals_config.touch_module_config.mirror_y = false;
+
+    /* Calculate checksum */
+    cached_peripherals_config.check_sum = checksum(&cached_peripherals_config);
+
     return &cached_peripherals_config;
 }

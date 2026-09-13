@@ -8,6 +8,7 @@
 #include "esp_log.h"
 #include "wallet_db.h"
 #include "ui/ui_style.h"
+#include "lang.h"
 
 /*********************
  *      DEFINES
@@ -42,9 +43,9 @@ static char pin_tmp[7];
  */
 static int pin_step;
 
-static char *MSG_ENTER_NEW_PIN = "Enter new passcode";
-static char *MSG_RE_ENTER_PIN = "Re-Enter passcode";
-static char *MSG_VERIFY_PIN = "Enter passcode";
+#define MSG_ENTER_NEW_PIN lang_str(STR_ENTER_NEW_PIN)
+#define MSG_RE_ENTER_PIN lang_str(STR_RE_ENTER_PIN)
+#define MSG_VERIFY_PIN lang_str(STR_VERIFY_PIN)
 
 static char *fixed_msg;
 
@@ -72,7 +73,7 @@ void ui_pin_destroy(void);
  **********************/
 static void set_led(int num)
 {
-    if (num < 0 || num > 6)
+    if (num < 0 || num > 6 || leds == NULL)
     {
         return;
     }
@@ -83,13 +84,15 @@ static void set_led(int num)
             lv_obj_t *led = leds[i];
             if (num > i)
             {
-                lv_obj_set_style_border_color(led, lv_palette_main(LV_PALETTE_BLUE), 0);
-                lv_obj_set_style_bg_color(led, lv_palette_main(LV_PALETTE_BLUE), 0);
+                /* Entered digit: Bright Solid White Dot */
+                lv_obj_set_style_border_color(led, lv_color_hex(0xffffff), 0);
+                lv_obj_set_style_bg_color(led, lv_color_hex(0xffffff), 0);
             }
             else
             {
-                lv_obj_set_style_border_color(led, lv_color_hex(0xcccccc), 0);
-                lv_obj_set_style_bg_color(led, lv_color_hex(0xffffff), 0);
+                /* Empty digit: Hollow Circle with Grey Border */
+                lv_obj_set_style_border_color(led, lv_color_hex(0x718096), 0);
+                lv_obj_set_style_bg_color(led, lv_color_hex(0x000000), 0);
             }
         }
 
@@ -111,7 +114,7 @@ static void set_msg(char *msg, bool is_error)
         }
         else
         {
-            lv_obj_set_style_text_color(lv_msg, lv_color_hex(0x000000), 0);
+            lv_obj_set_style_text_color(lv_msg, lv_color_hex(0xffffff), 0);
         }
         lv_label_set_text(lv_msg, msg);
 
@@ -203,56 +206,30 @@ static void create_pin_input_page()
                          LV_GRID_ALIGN_CENTER, 0, 1);
 
     /* input circles */
-    int32_t *col_circle_dsc;
-    ALLOC_UTILS_MALLOC_MEMORY(alloc_utils_memory_struct_pointer, col_circle_dsc, sizeof(int32_t) * 9);
-    col_circle_dsc[0] = parent_width / 6;
-    col_circle_dsc[1] = parent_width / 9; //   ─┐
-    col_circle_dsc[2] = parent_width / 9; //    │
-    col_circle_dsc[3] = parent_width / 9; //    ├─ 6 LED
-    col_circle_dsc[4] = parent_width / 9; //    │
-    col_circle_dsc[5] = parent_width / 9; //    │
-    col_circle_dsc[6] = parent_width / 9; //   ─┘
-    col_circle_dsc[7] = parent_width / 6;
-    col_circle_dsc[8] = LV_GRID_TEMPLATE_LAST;
-
-    int32_t *row_circle_dsc;
-    ALLOC_UTILS_MALLOC_MEMORY(alloc_utils_memory_struct_pointer, row_circle_dsc, sizeof(int32_t) * 2);
-    row_circle_dsc[0] = LV_GRID_FR(1);
-    row_circle_dsc[1] = LV_GRID_TEMPLATE_LAST;
-
     lv_obj_t *input_circles = lv_obj_create(current_page);
     NO_BODER_PADDING_STYLE(input_circles);
-    lv_obj_set_style_grid_column_dsc_array(input_circles, col_circle_dsc, 0);
-    lv_obj_set_style_grid_row_dsc_array(input_circles, row_circle_dsc, 0);
-    lv_obj_set_layout(input_circles, LV_LAYOUT_GRID);
-    lv_obj_set_style_pad_column(input_circles, 0, 0);
-    lv_obj_set_size(input_circles, parent_width, LV_SIZE_CONTENT);
+    lv_obj_set_size(input_circles, parent_width, 40);
+    lv_obj_set_flex_flow(input_circles, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(input_circles, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_column(input_circles, 14, 0);
+    lv_obj_set_grid_cell(input_circles, LV_GRID_ALIGN_STRETCH, 0, 1,
+                         LV_GRID_ALIGN_CENTER, 1, 1);
 
-    /* 6 LED */
+    /* 6 LED / Dots */
     {
-
         ALLOC_UTILS_MALLOC_MEMORY(alloc_utils_memory_struct_pointer, leds, sizeof(void *) * 6);
-
-        lv_obj_t *led;
-        int led_size = (parent_width / 9) * 0.8;
         for (int i = 0; i < 6; i++)
         {
-            led = lv_obj_create(input_circles);
-            lv_obj_set_size(led, led_size, led_size);
-            lv_obj_set_style_radius(led, led_size, 0);
-            lv_obj_set_style_pad_all(led, 0, 0);
-            lv_obj_set_style_margin_all(led, 0, 0);
-            lv_obj_set_style_border_color(led, lv_color_hex(0xcccccc), 0);
-            lv_obj_set_style_bg_color(led, lv_color_hex(0xffffff), 0);
-            lv_obj_set_grid_cell(led, LV_GRID_ALIGN_CENTER, i + 1, 1,
-                                 LV_GRID_ALIGN_CENTER, 0, 1);
+            lv_obj_t *led = lv_obj_create(input_circles);
+            lv_obj_set_size(led, 18, 18);
+            lv_obj_set_style_radius(led, LV_RADIUS_CIRCLE, 0);
+            NO_BODER_PADDING_STYLE(led);
+            lv_obj_set_style_border_width(led, 2, 0);
+            lv_obj_set_style_border_color(led, lv_color_hex(0x718096), 0);
+            lv_obj_set_style_bg_color(led, lv_color_hex(0x000000), 0);
             leds[i] = led;
         }
     }
-
-    lv_obj_align(input_circles, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_set_grid_cell(input_circles, LV_GRID_ALIGN_STRETCH, 0, 1,
-                         LV_GRID_ALIGN_STRETCH, 1, 1);
 
     /* keyboard */
     lv_obj_t *btnm = lv_buttonmatrix_create(current_page);
@@ -326,7 +303,7 @@ static void pin_input_event_handler(lv_event_t *e)
                     {
                         pin_step = 0;
                         set_fixed_msg(MSG_ENTER_NEW_PIN);
-                        set_error_msg("Passcode not match!");
+                        set_error_msg(lang_str(STR_PASSCODE_NOT_MATCH));
                     }
                 }
                 else if (pin_step == 2)
@@ -373,6 +350,7 @@ void ui_pin_set(lv_obj_t *lv_parent, size_t lv_parent_width, size_t lv_parent_he
         event_target = _event_target;
 
         create_pin_input_page();
+        set_led(0);
         set_fixed_msg(MSG_ENTER_NEW_PIN);
 
         lvgl_port_unlock();
@@ -391,6 +369,7 @@ void ui_pin_verify(lv_obj_t *lv_parent, size_t lv_parent_width, size_t lv_parent
         event_target = _event_target;
 
         create_pin_input_page();
+        set_led(0);
 
         set_fixed_msg(MSG_VERIFY_PIN);
         char *error_msg = wallet_db_passcode_static_error_msg();

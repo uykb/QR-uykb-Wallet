@@ -21,6 +21,7 @@
 #include "ui/ui_qr_code.h"
 #include "controller/ctrl_init.h"
 #include "freertos/FreeRTOS.h"
+#include "lang.h"
 
 /*********************
  *      DEFINES
@@ -111,7 +112,7 @@ static void wallet_list_item_event_handler(lv_event_t *e)
         if (network_data->compatible_wallet_group == NULL)
         {
             char *text = (char *)malloc(sizeof(char) * (strlen(network_data->name) + 50));
-            sprintf(text, "The network %s is not implemented yet.", network_data->name);
+            sprintf(text, lang_str(STR_NETWORK_NOT_IMPLEMENTED), network_data->name);
             ui_toast_show(text, 2000);
             free(text);
         }
@@ -261,16 +262,16 @@ static void create_tab_settings(lv_obj_t *parent)
     lv_obj_set_size(list, lv_pct(100), lv_pct(100));
     lv_obj_center(list);
 
-    lv_list_add_text(list, "Lock Now");
-    lv_obj_t *btn = lv_list_add_button(list, LV_SYMBOL_CLOSE, "Lock"); // ctrl_home_destroy();
+    lv_list_add_text(list, lang_str(STR_LOCK_NOW));
+    lv_obj_t *btn = lv_list_add_button(list, LV_SYMBOL_CLOSE, lang_str(STR_LOCK)); // ctrl_home_destroy();
 
     settings_action_data_t *lock_action = NULL;
     ALLOC_UTILS_MALLOC_MEMORY(alloc_utils_memory_struct_pointer, lock_action, sizeof(settings_action_data_t));
     lock_action->action = SETTINGS_ACTION_LOCK_NOW;
     lv_obj_add_event_cb(btn, ui_event_handler, LV_EVENT_CLICKED, lock_action);
 
-    lv_list_add_text(list, "Erase All Data");
-    btn = lv_list_add_button(list, LV_SYMBOL_TRASH, "Erase Wallet");
+    lv_list_add_text(list, lang_str(STR_ERASE_ALL_DATA));
+    btn = lv_list_add_button(list, LV_SYMBOL_TRASH, lang_str(STR_ERASE_WALLET));
     settings_action_data_t *erase_all_data_action = NULL;
     ALLOC_UTILS_MALLOC_MEMORY(alloc_utils_memory_struct_pointer, erase_all_data_action, sizeof(settings_action_data_t));
     erase_all_data_action->action = SETTINGS_ACTION_ERASE_ALL_DATA;
@@ -282,21 +283,13 @@ static void create_tab_settings(lv_obj_t *parent)
             └────────┴───────┘
             */
 
-    lv_list_add_text(list, "To protect your data, all data will be erased if the PIN is entered incorrectly too many times");
+    lv_list_add_text(list, lang_str(STR_ERASE_WARNING));
     lv_obj_t *ddlwarp = lv_list_add_button(list, LV_SYMBOL_WARNING, NULL);
     lv_obj_remove_flag(ddlwarp, LV_OBJ_FLAG_CLICKABLE);
 
     incorrect_pin_count_max_dd = lv_dropdown_create(ddlwarp);
     NO_BODER_PADDING_STYLE(incorrect_pin_count_max_dd);
-    lv_dropdown_set_options(incorrect_pin_count_max_dd, "After 2 times\n"
-                                                        "After 3 times\n"
-                                                        "After 4 times\n"
-                                                        "After 5 times\n"
-                                                        "After 6 times\n"
-                                                        "After 7 times\n"
-                                                        "After 8 times\n"
-                                                        "After 9 times\n"
-                                                        "After 10 times");
+    lv_dropdown_set_options(incorrect_pin_count_max_dd, lang_str(STR_AFTER_N_TIMES));
 
     // lv_obj_align(dd, LV_ALIGN_TOP_MID, 0, 20);
     lv_obj_set_flex_grow(incorrect_pin_count_max_dd, 1);
@@ -313,19 +306,14 @@ static void create_tab_settings(lv_obj_t *parent)
 
     if (app_backlight_support())
     {
-        lv_list_add_text(list, "Backlight");
+        lv_list_add_text(list, lang_str(STR_BACKLIGHT));
         btn = lv_list_add_button(list, NULL, "100%");
     }
-    lv_list_add_text(list, "About");
-    btn = lv_list_add_button(list, NULL, "Github");
-    settings_action_data_t *show_github_page_action = NULL;
-    ALLOC_UTILS_MALLOC_MEMORY(alloc_utils_memory_struct_pointer, show_github_page_action, sizeof(settings_action_data_t));
-    show_github_page_action->action = SETTINGS_ACTION_SHOW_GITHUB_PAGE;
-    lv_obj_add_event_cb(btn, ui_event_handler, LV_EVENT_CLICKED, show_github_page_action);
     char *version_str = NULL;
-    ALLOC_UTILS_MALLOC_MEMORY(alloc_utils_memory_struct_pointer, version_str, sizeof(char) * (strlen(APP_VERSION) + strlen(APP_VERSION_RELEASE_DATE) + 50));
-    sprintf(version_str, "Version: %s\nRelease Date: %s", APP_VERSION, APP_VERSION_RELEASE_DATE);
-    lv_list_add_button(list, NULL, version_str);
+    ALLOC_UTILS_MALLOC_MEMORY(alloc_utils_memory_struct_pointer, version_str, sizeof(char) * (strlen(APP_VERSION_RELEASE_DATE) + 50));
+    sprintf(version_str, lang_str(STR_VERSION_FORMAT), APP_VERSION_RELEASE_DATE);
+    lv_obj_t *ver_btn = lv_list_add_button(list, NULL, version_str);
+    lv_obj_remove_flag(ver_btn, LV_OBJ_FLAG_CLICKABLE);
 }
 static void lv_tabview_event_handler(lv_event_t *e)
 {
@@ -356,7 +344,7 @@ static void ui_event_handler(lv_event_t *e)
         }
         if (ui_action->action == SETTINGS_ACTION_LOCK_NOW)
         {
-            ctrl_home_lock_screen();
+            ctrl_home_lock_screen(NULL);
         }
         else if (ui_action->action == SETTINGS_ACTION_ERASE_ALL_DATA)
         {
@@ -364,18 +352,18 @@ static void ui_event_handler(lv_event_t *e)
             if (lvgl_port_lock(0))
             {
                 erase_msgbox = lv_msgbox_create(NULL);
-                lv_msgbox_add_title(erase_msgbox, "Erase");
-                lv_msgbox_add_text(erase_msgbox, "All data will be erased.");
+                lv_msgbox_add_title(erase_msgbox, lang_str(STR_ERASE_CONFIRM_TITLE));
+                lv_msgbox_add_text(erase_msgbox, lang_str(STR_ERASE_CONFIRM_TEXT));
                 lv_obj_set_size(erase_msgbox, lv_pct(100), LV_SIZE_CONTENT);
                 lv_obj_t *btn;
-                btn = lv_msgbox_add_footer_button(erase_msgbox, "Erase");
+                btn = lv_msgbox_add_footer_button(erase_msgbox, lang_str(STR_ERASE));
                 if (settings_action_tmp_1 == NULL)
                 {
                     ALLOC_UTILS_MALLOC_MEMORY(alloc_utils_memory_struct_pointer, settings_action_tmp_1, sizeof(settings_action_data_t));
                 }
                 settings_action_tmp_1->action = SETTINGS_ACTION_ERASE_ALL_DATA_CONFIRM;
                 lv_obj_add_event_cb(btn, ui_event_handler, LV_EVENT_CLICKED, settings_action_tmp_1);
-                btn = lv_msgbox_add_footer_button(erase_msgbox, "Cancel");
+                btn = lv_msgbox_add_footer_button(erase_msgbox, lang_str(STR_CANCEL));
 
                 if (settings_action_tmp_2 == NULL)
                 {
@@ -407,7 +395,7 @@ static void ui_event_handler(lv_event_t *e)
             }
 
             sub_master_page = malloc(sizeof(ui_master_page_t));
-            ui_master_page_init(NULL, tv, false, true, "Erase All Data", sub_master_page);
+            ui_master_page_init(NULL, tv, false, true, lang_str(STR_ERASE_ALL_DATA), sub_master_page);
             int32_t container_width = 0;
             int32_t container_height = 0;
             ui_master_page_get_container_size(sub_master_page, &container_width, &container_height);
@@ -426,10 +414,6 @@ static void ui_event_handler(lv_event_t *e)
 
                 lvgl_port_unlock();
             }
-        }
-        else if (ui_action->action == SETTINGS_ACTION_SHOW_GITHUB_PAGE)
-        {
-            ui_qr_code_init("Github", "Homepage", "https://github.com/BlockEase/QR-Hardware-Wallet", "https://github.com/BlockEase/QR-Hardware-Wallet");
         }
     }
     else if (code == LV_EVENT_VALUE_CHANGED)
@@ -459,7 +443,7 @@ static void ui_event_handler(lv_event_t *e)
                     sub_master_page = NULL;
                 }
                 sub_master_page = malloc(sizeof(ui_master_page_t));
-                sprintf(temp, "Set maximum attempts to %d times", idx + 2);
+                sprintf(temp, lang_str(STR_SET_MAX_ATTEMPTS), idx + 2);
                 ui_master_page_init(NULL, tv, false, true, temp, sub_master_page);
                 int32_t container_width = 0;
                 int32_t container_height = 0;
@@ -564,19 +548,19 @@ void ui_home_init(void)
         lv_tabview_set_tab_bar_position(tv, LV_DIR_BOTTOM);
         lv_tabview_set_tab_bar_size(tv, 70);
 
-        lv_obj_t *tab_wallet = lv_tabview_add_tab(tv, "Wallet");
+        lv_obj_t *tab_wallet = lv_tabview_add_tab(tv, lang_str(STR_WALLET));
         if (tab_wallet == NULL)
         {
             ESP_LOGE(TAG, "Failed to create tab");
             return;
         }
-        lv_obj_t *tab_scanner = lv_tabview_add_tab(tv, "Scanner");
+        lv_obj_t *tab_scanner = lv_tabview_add_tab(tv, lang_str(STR_SCANNER));
         if (tab_scanner == NULL)
         {
             ESP_LOGE(TAG, "Failed to create tab");
             return;
         }
-        lv_obj_t *tab_settings = lv_tabview_add_tab(tv, "Settings");
+        lv_obj_t *tab_settings = lv_tabview_add_tab(tv, lang_str(STR_SETTINGS));
         if (tab_settings == NULL)
         {
             ESP_LOGE(TAG, "Failed to create tab");
@@ -613,9 +597,9 @@ void ui_home_destroy(void)
         sub_master_page = NULL;
     }
 
-    ui_qr_code_destroy();
+    ui_qr_code_destroy(NULL);
     ui_pin_destroy();
-    ui_connect_qrcode_destroy();
+    ui_connect_qrcode_destroy(NULL);
 
     if (erase_msgbox != NULL)
     {

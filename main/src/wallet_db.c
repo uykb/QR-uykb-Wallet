@@ -248,7 +248,7 @@ bool wallet_db_init_wallet_data(char *phrase_str, char *pin_str, char **private_
     free(walletData_read);
     walletData_read = NULL;
     wallet_free(wallet);
-    wallet = NULL;
+    wallet = 0;
     // free(root_private_key);
     // root_private_key = NULL;
     *private_key_str = root_private_key;

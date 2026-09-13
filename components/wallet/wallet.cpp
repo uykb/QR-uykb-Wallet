@@ -146,6 +146,16 @@ extern "C"
         auto str = _wallet->segwitAddress();
         strcpy(address, str.c_str());
     }
+    char *wallet_get_btc_xpub(Wallet wallet, const char *path)
+    {
+        HDPrivateKey *_wallet = get_shared_ptr(wallet);
+        HDPrivateKey account = _wallet->derive(path);
+        char buf[128] = {0};
+        account.xpub(buf, sizeof(buf));
+        char *cstr = (char *)malloc(strlen(buf) + 1);
+        strcpy(cstr, buf);
+        return cstr;
+    }
     Wallet wallet_derive_eth(Wallet wallet, unsigned int index)
     {
         HDPrivateKey *_wallet = get_shared_ptr(wallet);

@@ -15,7 +15,7 @@ extern "C"
      * GLOBAL PROTOTYPES
      **********************/
     void ui_qr_code_init(char *title, char *text_pre, char *qr_code, char *text_post);
-    void ui_qr_code_destroy(void);
+    void ui_qr_code_destroy(void *arg);
 
 #ifdef __cplusplus
     extern "C"

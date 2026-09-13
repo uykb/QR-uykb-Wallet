@@ -14,6 +14,7 @@
 #include "ethereum.h"
 #include "cJSON.h"
 #include <math.h>
+#include "lang.h"
 
 /*********************
  *      DEFINES
@@ -33,7 +34,7 @@ static lv_obj_t *event_target = NULL;
 static void ui_event_handler(lv_event_t *e);
 static void ctrl_sign_destroy(void *arg);
 static char *ctrl_sign_get_signature(void);
-static void show_qr_signature(char *arg);
+static void show_qr_signature(void *arg);
 
 /**********************
  * GLOBAL PROTOTYPES
@@ -56,10 +57,11 @@ static void ui_event_handler(lv_event_t *e)
         lv_async_call(show_qr_signature, NULL);
     }
 }
-static void show_qr_signature(char *arg)
+static void show_qr_signature(void *arg)
 {
+    (void)arg;
     char *signature = ctrl_sign_get_signature();
-    ui_qr_code_init("Signature", "Scan the QR code to send transaction", signature, NULL);
+    ui_qr_code_init(lang_str(STR_SIGNATURE), lang_str(STR_SCAN_TO_SEND), signature, NULL);
     free(signature);
     ctrl_sign_destroy(NULL);
     ui_loading_hide();

@@ -1,5 +1,5 @@
 #include "crc32.h"
-#include <esp32/rom/crc.h>
+#include <rom/crc.h>
 
 /**
  * @brief CRC32 value that is in little endian.

@@ -10,6 +10,7 @@
 #include "wallet_db.h"
 #include "ui/ui_panic.h"
 #include "ui/ui_pin.h"
+#include "lang.h"
 
 /*********************
  *      DEFINES
@@ -38,7 +39,7 @@ static char *verify_pin(char *pin_str);
  * GLOBAL PROTOTYPES
  **********************/
 void ui_decoder_init(Wallet _wallet, qrcode_protocol_bc_ur_data_t *_qrcode_protocol_bc_ur_data, lv_obj_t *event_target);
-void ui_decoder_destroy(void);
+void ui_decoder_destroy(void *arg);
 
 /**********************
  *   STATIC FUNCTIONS
@@ -53,7 +54,7 @@ static void ui_event_handler(lv_event_t *e)
         wallet_data_version_1_t walletData;
         if (wallet_db_load_wallet_data(&walletData) == false)
         {
-            ui_panic("Can't load wallet data", PANIC_REBOOT);
+            ui_panic(lang_str(STR_LOAD_WALLET_FAILED), PANIC_REBOOT);
             return;
         }
         if (walletData.signPinRequired)
@@ -62,14 +63,14 @@ static void ui_event_handler(lv_event_t *e)
         }
         else
         {
-            lv_async_call(ui_decoder_destroy, NULL);
+            lv_async_call((lv_async_cb_t)ui_decoder_destroy, NULL);
             lv_obj_send_event(event_target, UI_EVENT_DECODER_CONFIRM, NULL);
         }
     }
     else if (code == UI_EVENT_MASTER_PAGE_CLOSE_BUTTON_CLICKED)
     {
         ui_master_page_set_close_button_visibility(false, master_page);
-        lv_async_call(ui_decoder_destroy, NULL);
+        lv_async_call((lv_async_cb_t)ui_decoder_destroy, NULL);
         lv_obj_send_event(event_target, UI_EVENT_DECODER_CANCEL, NULL);
     }
 }
@@ -79,7 +80,7 @@ static char *verify_pin(char *pin_str)
     if (ret == NULL)
     {
         free(wallet_db_pop_private_key());
-        lv_async_call(ui_decoder_destroy, NULL);
+        lv_async_call((lv_async_cb_t)ui_decoder_destroy, NULL);
         lv_obj_send_event(event_target, UI_EVENT_DECODER_CONFIRM, NULL);
     }
     return ret;
@@ -102,7 +103,7 @@ void ui_decoder_init(Wallet _wallet, qrcode_protocol_bc_ur_data_t *_qrcode_proto
     {
         lv_obj_add_event_cb(event_target, ui_event_handler, UI_EVENT_MASTER_PAGE_CLOSE_BUTTON_CLICKED, NULL);
         ALLOC_UTILS_MALLOC_MEMORY(alloc_utils_memory_struct_pointer, master_page, sizeof(ui_master_page_t));
-        ui_master_page_init(NULL, event_target, false, true, "Transaction", master_page);
+        ui_master_page_init(NULL, event_target, false, true, lang_str(STR_TRANSACTION), master_page);
         lv_obj_t *_container = ui_master_page_get_container(master_page);
         ui_master_page_get_container_size(master_page, &container_width, &container_height);
 
@@ -124,21 +125,22 @@ void ui_decoder_init(Wallet _wallet, qrcode_protocol_bc_ur_data_t *_qrcode_proto
 
         label = lv_label_create(cont_col);
         NO_BODER_PADDING_STYLE(label);
-        lv_label_set_text(label, "Transaction decode not implemented yet");
+        lv_label_set_text(label, lang_str(STR_TX_NOT_IMPLEMENTED));
         lv_obj_set_size(label, LV_PCT(100), container_height - footer_height);
 
         obj = lv_button_create(cont_col);
         lv_obj_set_size(obj, LV_PCT(100), footer_height * 0.8);
         label = lv_label_create(obj);
-        lv_label_set_text(label, "Sign");
+        lv_label_set_text(label, lang_str(STR_SIGN));
         lv_obj_center(label);
         lv_obj_add_event_cb(obj, ui_event_handler, LV_EVENT_CLICKED, NULL);
     }
     lvgl_port_unlock();
 }
-void ui_decoder_destroy()
+void ui_decoder_destroy(void *arg)
 {
-    wallet = NULL;
+    (void)arg;
+    wallet = 0;
     qrcode_protocol_bc_ur_data = NULL;
 
     ui_pin_destroy();

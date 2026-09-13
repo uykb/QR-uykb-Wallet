@@ -14,7 +14,7 @@
 #define APP_VERSION "0.0.1"
 
 /* For verification of the firmware's hash, use a static string. */
-#define APP_VERSION_RELEASE_DATE "2024-10-24"
+#define APP_VERSION_RELEASE_DATE "2026-09-13"
 
 /* Salt for rainbow table protection */
 #define RAINBOW_TABLE_SALT "Rainbow Table Salt(Change it to your own secret before compiling)"

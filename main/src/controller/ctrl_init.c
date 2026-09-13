@@ -14,6 +14,7 @@
 #include "wallet.h"
 #include "controller/ctrl_wizard.h"
 #include "controller/ctrl_home.h"
+#include "lang.h"
 
 /*********************
  *      DEFINES
@@ -47,6 +48,7 @@ void ctrl_init(void *parameters);
  **********************/
 void ctrl_init(void *parameters)
 {
+    lang_init();
     event_group_global = xEventGroupCreate();
 
     while (1)

@@ -12,6 +12,7 @@
 #include "wallet_db.h"
 #include "ui/ui_toast.h"
 #include "ui/ui_style.h"
+#include "lang.h"
 
 /*********************
  *      DEFINES
@@ -50,7 +51,15 @@ typedef struct
 /**********************
  *  STATIC VARIABLES
  **********************/
-static char *tab_title_list[] = {"Language", "Security", "Mnemonic Type", "Enter Mnemonic", "Enter Passcode", ""};
+static char *tab_title_list_en[] = {"Language", "Security", "Mnemonic Type", "Enter Mnemonic", "Enter Passcode", ""};
+static char *tab_title_list_cn[] = {"语言", "安全", "助记词类型", "输入助记词", "输入密码", ""};
+
+static const char *get_tab_title(int index)
+{
+    str_id_t ids[] = {STR_LANGUAGE, STR_SECURITY, STR_MNEMONIC_TYPE, STR_ENTER_MNEMONIC, STR_ENTER_PASSCODE};
+    if (index >= 0 && index < 5) return lang_str(ids[index]);
+    return "";
+}
 static lv_obj_t *screen = NULL;
 static lv_obj_t *tv = NULL;
 static uint32_t tab_index = 0;
@@ -101,7 +110,7 @@ static void tabview_next_tab(void)
         ESP_LOGE(TAG, "next_tab_index is out of range");
         return;
     }
-    ui_master_page_set_title(tab_title_list[next_tab_index], ui_master_page);
+    ui_master_page_set_title(get_tab_title(next_tab_index), ui_master_page);
     ui_master_page_set_back_button_visibility(next_tab_index > 0 && next_tab_index != TAB_INDEX_DONE, ui_master_page);
     if (lvgl_port_lock(0))
     {
@@ -119,7 +128,7 @@ static void tabview_prev_tab(void)
         ESP_LOGE(TAG, "prev_tab_index is out of range");
         return;
     }
-    ui_master_page_set_title(tab_title_list[prev_tab_index], ui_master_page);
+    ui_master_page_set_title(get_tab_title(prev_tab_index), ui_master_page);
     ui_master_page_set_back_button_visibility(prev_tab_index > 0, ui_master_page);
     if (lvgl_port_lock(0))
     {
@@ -141,6 +150,17 @@ static void ui_event_handler(lv_event_t *e)
         }
         if (tab_data->tab_action == CHOOSE_LANGUAGE)
         {
+            lang_set((lang_id_t)(uintptr_t)tab_data->parameter);
+
+            /* Clear and rebuild downstream tabs with newly selected language */
+            lv_obj_clean(tab_warning_message);
+            lv_obj_clean(tab_choose_mnemonic_type);
+            lv_obj_clean(tab_done);
+
+            init_tab_warning_message();
+            init_tab_choose_mnemonic_type();
+            init_tab_done();
+
             tabview_next_tab();
         }
         else if (tab_data->tab_action == READ_WARNING_MESSAGE)
@@ -211,6 +231,7 @@ static void on_tab_change(size_t prev_tab_index, size_t next_tab_index)
 static void init_tab_language(void)
 {
     /* tab_language */
+
     lv_obj_t *div = lv_obj_create(tab_language);
     lv_obj_set_size(div, container_width, container_height);
     NO_BODER_PADDING_STYLE(div);
@@ -223,16 +244,40 @@ static void init_tab_language(void)
     lv_obj_align_to(cont_col, container, LV_ALIGN_CENTER, 0, 0);
 
     lv_obj_set_flex_flow(cont_col, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_row(cont_col, 15, 0);
     {
         lv_obj_t *obj = lv_button_create(cont_col);
-        lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+        lv_obj_set_size(obj, 160, 48);
+        lv_obj_set_style_bg_color(obj, lv_color_hex(0x2d3748), 0);
+        lv_obj_set_style_border_width(obj, 1, 0);
+        lv_obj_set_style_border_color(obj, lv_color_hex(0x4a5568), 0);
+        lv_obj_set_style_radius(obj, 8, 0);
         lv_obj_t *label = lv_label_create(obj);
         lv_label_set_text(label, "English");
+        lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
         lv_obj_center(label);
         tab_data_t *tab_data = NULL;
         ALLOC_UTILS_MALLOC_MEMORY(alloc_utils_memory_struct_pointer, tab_data, sizeof(tab_data_t));
         tab_data->tab_action = CHOOSE_LANGUAGE;
-        tab_data->parameter = "English";
+        tab_data->parameter = (void *)LANG_EN;
+
+        lv_obj_add_event_cb(obj, ui_event_handler, LV_EVENT_CLICKED, tab_data);
+    }
+    {
+        lv_obj_t *obj = lv_button_create(cont_col);
+        lv_obj_set_size(obj, 160, 48);
+        lv_obj_set_style_bg_color(obj, lv_color_hex(0x2d3748), 0);
+        lv_obj_set_style_border_width(obj, 1, 0);
+        lv_obj_set_style_border_color(obj, lv_color_hex(0x4a5568), 0);
+        lv_obj_set_style_radius(obj, 8, 0);
+        lv_obj_t *label = lv_label_create(obj);
+        lv_label_set_text(label, "中文");
+        lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
+        lv_obj_center(label);
+        tab_data_t *tab_data = NULL;
+        ALLOC_UTILS_MALLOC_MEMORY(alloc_utils_memory_struct_pointer, tab_data, sizeof(tab_data_t));
+        tab_data->tab_action = CHOOSE_LANGUAGE;
+        tab_data->parameter = (void *)LANG_CN;
 
         lv_obj_add_event_cb(obj, ui_event_handler, LV_EVENT_CLICKED, tab_data);
     }
@@ -247,22 +292,29 @@ static void init_tab_warning_message(void)
     lv_obj_center(cont);
     lv_obj_set_flex_flow(cont, LV_FLEX_FLOW_COLUMN);
     NO_BODER_PADDING_STYLE(cont);
+    lv_obj_set_scroll_dir(cont, LV_DIR_VER);
+    lv_obj_set_scrollbar_mode(cont, LV_SCROLLBAR_MODE_AUTO);
     lv_obj_t *label = lv_label_create(cont);
     lv_obj_set_style_margin_all(label, 10, 0);
     lv_obj_set_size(label, container_width * 0.9, LV_SIZE_CONTENT);
+    lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
     lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
-    lv_label_set_text(label, "  This wallet only supports importing seed phrases because the hardware lacks an audited true random number generator. Please generate your seed phrase using another trusted software or hardware wallet and then import it here.\n\n  If you forget your passcode, you will lose access to the wallet.\n\n  If the hardware is lost, transfer your assets immediately. The private keys stored on this device could be accessed by others, especially if the bootloader is not encrypted!\n\n  When charging or connecting via USB, always connect directly to a power adapter instead of a computer, as malicious software on the computer could compromise your device.\n\n  Before signing any transaction, double-check the details to ensure you know the information. Never sign data you do not trust!\n\n  To enhance security, the Wi-Fi and Bluetooth has been disabled.\n\n  Following the above guidelines, your wallet is secure.");
+    lv_label_set_text(label, lang_str(STR_SECURITY_TEXT));
     lv_obj_center(label);
 
     lv_obj_t *footer = lv_obj_create(cont);
     lv_obj_set_style_border_width(footer, 0, 0);
     lv_obj_set_size(footer, container_width, LV_SIZE_CONTENT);
     lv_obj_set_style_pad_bottom(footer, 50, 0);
+    lv_obj_set_style_pad_top(footer, 10, 0);
     lv_obj_t *button = lv_button_create(footer);
-    lv_obj_set_size(button, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_size(button, 140, 44);
+    lv_obj_set_style_bg_color(button, lv_color_hex(0x2b6cb0), 0);
+    lv_obj_set_style_radius(button, 8, 0);
     lv_obj_align(button, LV_ALIGN_CENTER, 0, 0);
     label = lv_label_create(button);
-    lv_label_set_text(label, "Next");
+    lv_label_set_text(label, lang_str(STR_NEXT));
+    lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
     lv_obj_center(label);
 
     tab_data_t *tab_data = NULL;
@@ -286,11 +338,36 @@ static void init_tab_choose_mnemonic_type(void)
     lv_obj_align_to(cont_col, container, LV_ALIGN_CENTER, 0, 0);
 
     lv_obj_set_flex_flow(cont_col, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_row(cont_col, 15, 0);
     {
         lv_obj_t *obj = lv_button_create(cont_col);
-        lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+        lv_obj_set_size(obj, 160, 48);
+        lv_obj_set_style_bg_color(obj, lv_color_hex(0x2d3748), 0);
+        lv_obj_set_style_border_width(obj, 1, 0);
+        lv_obj_set_style_border_color(obj, lv_color_hex(0x4a5568), 0);
+        lv_obj_set_style_radius(obj, 8, 0);
         lv_obj_t *label = lv_label_create(obj);
-        lv_label_set_text(label, "24 words");
+        lv_label_set_text(label, lang_str(STR_12_WORDS));
+        lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
+        lv_obj_center(label);
+        tab_data_t *tab_data = NULL;
+        ALLOC_UTILS_MALLOC_MEMORY(alloc_utils_memory_struct_pointer, tab_data, sizeof(tab_data_t));
+        tab_data->tab_action = CHOOSE_MNEMONIC_TYPE;
+        static int mnemonic_type_12 = MNEMONIC_TYPE_12;
+        tab_data->parameter = (void *)(&mnemonic_type_12);
+
+        lv_obj_add_event_cb(obj, ui_event_handler, LV_EVENT_CLICKED, tab_data);
+    }
+    {
+        lv_obj_t *obj = lv_button_create(cont_col);
+        lv_obj_set_size(obj, 160, 48);
+        lv_obj_set_style_bg_color(obj, lv_color_hex(0x2d3748), 0);
+        lv_obj_set_style_border_width(obj, 1, 0);
+        lv_obj_set_style_border_color(obj, lv_color_hex(0x4a5568), 0);
+        lv_obj_set_style_radius(obj, 8, 0);
+        lv_obj_t *label = lv_label_create(obj);
+        lv_label_set_text(label, lang_str(STR_24_WORDS));
+        lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
         lv_obj_center(label);
         tab_data_t *tab_data = NULL;
         ALLOC_UTILS_MALLOC_MEMORY(alloc_utils_memory_struct_pointer, tab_data, sizeof(tab_data_t));
@@ -304,19 +381,6 @@ static void init_tab_choose_mnemonic_type(void)
 }
 static void init_tab_done(void)
 {
-    /*
-        UI:
-        ┌───────────────────────────────────────┐
-        │  Welcome to QR-Based Hardware Wallet! │
-        │  Your account is successfully set up. │
-        │                                       │
-        │             ┌───────────┐             │
-        │             │   Enter   │             │
-        │             └───────────┘             │
-        │                                       │
-        └───────────────────────────────────────┘
-     */
-
     lv_obj_t *cont = lv_obj_create(tab_done);
     lv_obj_set_size(cont, container_width, container_height);
     lv_obj_center(cont);
@@ -325,17 +389,22 @@ static void init_tab_done(void)
     lv_obj_t *label = lv_label_create(cont);
     lv_obj_set_style_margin_all(label, 10, 0);
     lv_obj_set_size(label, container_width * 0.9, LV_SIZE_CONTENT);
+    lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
     lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
-    lv_label_set_text(label, "\n\n  Welcome to QR Hardware Wallet!\n\n\n  Your account is successfully set up.");
+    lv_label_set_text(label, lang_str(STR_WELCOME_TEXT));
     lv_obj_center(label);
 
     lv_obj_t *footer = lv_obj_create(cont);
     lv_obj_set_style_border_width(footer, 0, 0);
     lv_obj_set_size(footer, container_width, LV_SIZE_CONTENT);
     btn_done = lv_button_create(footer);
+    lv_obj_set_size(btn_done, 140, 44);
+    lv_obj_set_style_bg_color(btn_done, lv_color_hex(0x2b6cb0), 0);
+    lv_obj_set_style_radius(btn_done, 8, 0);
     lv_obj_align(btn_done, LV_ALIGN_CENTER, 0, 0);
     label = lv_label_create(btn_done);
-    lv_label_set_text(label, "Enter");
+    lv_label_set_text(label, lang_str(STR_ENTER));
+    lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
     lv_obj_center(label);
     lv_obj_add_flag(btn_done, LV_OBJ_FLAG_HIDDEN);
 
@@ -348,7 +417,7 @@ static void task_store_wallet_data(void *parameters)
 {
     if (!wallet_db_init_wallet_data(phrase_cache, pin_cache, &root_private_key))
     {
-        ui_panic("init_wallet_data failed", PANIC_REBOOT);
+        ui_panic(lang_str(STR_INIT_WALLET_FAILED), PANIC_REBOOT);
     }
     else
     {
@@ -379,7 +448,7 @@ void ui_wizard_init()
         lv_obj_add_event_cb(screen, ui_event_handler, UI_EVENT_PHRASE_CONFIRM, NULL);
         lv_obj_add_event_cb(screen, ui_event_handler, UI_EVENT_PIN_CONFIRM, NULL);
         ui_master_page = malloc(sizeof(ui_master_page_t));
-        ui_master_page_init(NULL, screen, false, false, tab_title_list[0], ui_master_page);
+        ui_master_page_init(NULL, screen, false, false, get_tab_title(TAB_INDEX_CHOOSE_LANGUAGE), ui_master_page);
         container = ui_master_page_get_container(ui_master_page);
         tv = lv_tabview_create(container);
         NO_BODER_PADDING_STYLE(tv);
@@ -410,7 +479,7 @@ void ui_wizard_init()
 
         lvgl_port_unlock();
     }
-    ui_toast_show("NOTE:\nSECURE BOOT in current version does not implemented, If the device is lost, your private key may be compromised!", 3000);
+    ui_toast_show(lang_str(STR_TOAST_SECURE_BOOT), 3000);
 }
 void ui_wizard_destroy(void)
 {

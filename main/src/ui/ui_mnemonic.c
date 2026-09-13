@@ -8,6 +8,7 @@
 #include "ui/ui_mnemonic.h"
 #include "ui/ui_events.h"
 #include "alloc_utils.h"
+#include "lang.h"
 #include "esp_log.h"
 #include "ui/ui_style.h"
 
@@ -75,19 +76,18 @@ static void msgbox_confirm_event_handler(lv_event_t *e)
 
 static void send_mnemonic_confirm_event(void)
 {
-    char *phrase = NULL;
-    if (phrases_len == 24)
+    if (phrases_len == (size_t)mnemonic_type)
     {
-        phrase = malloc(sizeof(char) * 10 * 24);
-        sprintf(phrase, "%s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s",
-                phrases[0], phrases[1], phrases[2],
-                phrases[3], phrases[4], phrases[5],
-                phrases[6], phrases[7], phrases[8],
-                phrases[9], phrases[10], phrases[11],
-                phrases[12], phrases[13], phrases[14],
-                phrases[15], phrases[16], phrases[17],
-                phrases[18], phrases[19], phrases[20],
-                phrases[21], phrases[22], phrases[23]);
+        char *phrase = malloc(sizeof(char) * 12 * phrases_len + 1);
+        phrase[0] = '\0';
+        for (size_t i = 0; i < phrases_len; i++)
+        {
+            strcat(phrase, phrases[i]);
+            if (i < phrases_len - 1)
+            {
+                strcat(phrase, " ");
+            }
+        }
         if (lvgl_port_lock(0))
         {
             lv_result_t re = lv_obj_send_event(
@@ -109,6 +109,23 @@ static void msgbox_retry_event_handler(lv_event_t *e)
     {
         lv_obj_t *mbox = lv_event_get_user_data(e);
         lv_msgbox_close(mbox);
+
+        /* Restore keyboard and words bar visibility */
+        if (keyboard)
+        {
+            lv_obj_remove_flag(keyboard, LV_OBJ_FLAG_HIDDEN);
+        }
+        if (words)
+        {
+            lv_obj_remove_flag(words, LV_OBJ_FLAG_HIDDEN);
+        }
+
+        /* Reset phrase input to start over */
+        phrases_len = 0;
+        current_input[0] = '\0';
+        lv_obj_clean(content);
+        update_keyboard_button();
+
         lvgl_port_unlock();
     }
 }
@@ -116,7 +133,7 @@ static void phrase_choose_event_handler(lv_event_t *e)
 {
     if (lv_event_get_code(e) == LV_EVENT_CLICKED)
     {
-        if (phrases_len < 24)
+        if (phrases_len < (size_t)mnemonic_type)
         {
             if (lvgl_port_lock(0))
             {
@@ -129,8 +146,13 @@ static void phrase_choose_event_handler(lv_event_t *e)
                     lv_obj_t *obj = lv_button_create(content);
                     lv_obj_remove_flag(obj, LV_OBJ_FLAG_CLICKABLE);
                     lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                    lv_obj_set_style_bg_color(obj, lv_color_hex(0x2d3748), 0);
+                    lv_obj_set_style_border_width(obj, 1, 0);
+                    lv_obj_set_style_border_color(obj, lv_color_hex(0x4a5568), 0);
+                    lv_obj_set_style_radius(obj, 4, 0);
                     lv_obj_t *label = lv_label_create(obj);
                     lv_label_set_text_fmt(label, "#%zu %s", phrases_len, item_arg);
+                    lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
                     lv_obj_center(label);
 
                     // scroll `content` to bottom
@@ -140,31 +162,63 @@ static void phrase_choose_event_handler(lv_event_t *e)
             }
             update_keyboard_button();
         }
-        if (phrases_len == 24)
+        if (phrases_len == (size_t)mnemonic_type)
         {
             if (lvgl_port_lock(0))
             {
+                /* Hide keyboard and word suggestion bar so they don't overlap with the confirmation modal */
+                if (keyboard)
+                {
+                    lv_obj_add_flag(keyboard, LV_OBJ_FLAG_HIDDEN);
+                }
+                if (words)
+                {
+                    lv_obj_add_flag(words, LV_OBJ_FLAG_HIDDEN);
+                }
+
                 lv_obj_t *mbox = lv_msgbox_create(NULL);
-                lv_obj_set_size(mbox, lv_obj_get_content_width(parent), LV_SIZE_CONTENT);
-                lv_msgbox_add_title(mbox, "Mnemonic phrase");
-                char *text = malloc(sizeof(char) * 10 * 24);
-                sprintf(text, "#1 %s %s %s\n#4 %s %s %s\n#7 %s %s %s\n#10 %s %s %s\n#13 %s %s %s\n#16 %s %s %s\n#19 %s %s %s\n#22 %s %s %s",
-                        phrases[0], phrases[1], phrases[2],
-                        phrases[3], phrases[4], phrases[5],
-                        phrases[6], phrases[7], phrases[8],
-                        phrases[9], phrases[10], phrases[11],
-                        phrases[12], phrases[13], phrases[14],
-                        phrases[15], phrases[16], phrases[17],
-                        phrases[18], phrases[19], phrases[20],
-                        phrases[21], phrases[22], phrases[23]);
-                lv_msgbox_add_text(mbox, text);
+                lv_obj_set_size(mbox, lv_pct(100), lv_pct(100));
+                lv_obj_set_style_bg_color(mbox, lv_color_hex(0x121824), 0);
+                lv_obj_set_style_border_width(mbox, 0, 0);
+                lv_obj_set_style_radius(mbox, 0, 0);
+                lv_obj_center(mbox);
+
+                lv_msgbox_add_title(mbox, lang_str(STR_MNEMONIC_PHRASE));
+
+                char *text = malloc(sizeof(char) * 15 * phrases_len + 32);
+                text[0] = '\0';
+                for (size_t i = 0; i < phrases_len; i++)
+                {
+                    char line_buf[32];
+                    sprintf(line_buf, "#%zu %s%s", i + 1, phrases[i], ((i + 1) % 2 == 0) ? "\n" : "  ");
+                    strcat(text, line_buf);
+                }
+
+                lv_obj_t *content_obj = lv_msgbox_get_content(mbox);
+                if (content_obj)
+                {
+                    lv_obj_set_scroll_dir(content_obj, LV_DIR_VER);
+                    lv_obj_set_scrollbar_mode(content_obj, LV_SCROLLBAR_MODE_AUTO);
+                }
+                lv_obj_t *text_label = lv_msgbox_add_text(mbox, text);
+                if (text_label)
+                {
+                    lv_obj_set_style_text_color(text_label, lv_color_hex(0xffffff), 0);
+                }
                 free(text);
-                // lv_msgbox_add_close_button(mbox);
-                lv_obj_t *btn;
-                btn = lv_msgbox_add_footer_button(mbox, "Confirm");
-                lv_obj_add_event_cb(btn, msgbox_confirm_event_handler, LV_EVENT_CLICKED, mbox);
-                btn = lv_msgbox_add_footer_button(mbox, "Retry");
-                lv_obj_add_event_cb(btn, msgbox_retry_event_handler, LV_EVENT_CLICKED, mbox);
+
+                lv_obj_t *btn_confirm = lv_msgbox_add_footer_button(mbox, lang_str(STR_CONFIRM));
+                lv_obj_set_size(btn_confirm, 90, 38);
+                lv_obj_set_style_bg_color(btn_confirm, lv_color_hex(0x2b6cb0), 0);
+                lv_obj_set_style_text_color(btn_confirm, lv_color_hex(0xffffff), 0);
+                lv_obj_add_event_cb(btn_confirm, msgbox_confirm_event_handler, LV_EVENT_CLICKED, mbox);
+
+                lv_obj_t *btn_retry = lv_msgbox_add_footer_button(mbox, lang_str(STR_RETRY));
+                lv_obj_set_size(btn_retry, 90, 38);
+                lv_obj_set_style_bg_color(btn_retry, lv_color_hex(0x4a5568), 0);
+                lv_obj_set_style_text_color(btn_retry, lv_color_hex(0xffffff), 0);
+                lv_obj_add_event_cb(btn_retry, msgbox_retry_event_handler, LV_EVENT_CLICKED, mbox);
+
                 lvgl_port_unlock();
             }
         }
@@ -276,8 +330,13 @@ static void update_keyboard_button()
                 }
                 lv_obj_t *obj = lv_button_create(words);
                 lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                lv_obj_set_style_bg_color(obj, lv_color_hex(0x2d3748), 0);
+                lv_obj_set_style_border_width(obj, 1, 0);
+                lv_obj_set_style_border_color(obj, lv_color_hex(0x4a5568), 0);
+                lv_obj_set_style_radius(obj, 4, 0);
                 lv_obj_t *label = lv_label_create(obj);
                 lv_label_set_text(label, wordlist[i]);
+                lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
                 lv_obj_center(label);
                 lv_obj_set_user_data(obj, (void *)wordlist[i]);
                 lv_obj_add_event_cb(obj, phrase_choose_event_handler, LV_EVENT_CLICKED, NULL);
@@ -356,9 +415,9 @@ void ui_mnemonic_init(lv_obj_t *lv_parent, size_t parent_width, size_t parent_he
             └───────────────────┘
      */
     mnemonic_type = _mnemonic_type;
-    if (mnemonic_type != 24)
+    if (mnemonic_type != 12 && mnemonic_type != 24)
     {
-        ESP_LOGE(TAG, "mnemonic_type must be 24 words yet!");
+        ESP_LOGE(TAG, "mnemonic_type must be 12 or 24 words!");
         return;
     }
 

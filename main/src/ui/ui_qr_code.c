@@ -28,7 +28,7 @@ static void ui_event_handler(lv_event_t *e);
  * GLOBAL PROTOTYPES
  **********************/
 void ui_qr_code_init(char *title, char *text_pre, char *qr_code, char *text_post);
-void ui_qr_code_destroy(void);
+void ui_qr_code_destroy(void *arg);
 
 /**********************
  *   STATIC FUNCTIONS
@@ -39,7 +39,7 @@ static void ui_event_handler(lv_event_t *e)
     if (code == UI_EVENT_MASTER_PAGE_CLOSE_BUTTON_CLICKED)
     {
         ui_master_page_set_close_button_visibility(false, master_page);
-        lv_async_call(ui_qr_code_destroy, NULL);
+        lv_async_call((lv_async_cb_t)ui_qr_code_destroy, NULL);
     }
 }
 
@@ -105,8 +105,9 @@ void ui_qr_code_init(char *title, char *text_pre, char *qr_code, char *text_post
         lvgl_port_unlock();
     }
 }
-void ui_qr_code_destroy()
+void ui_qr_code_destroy(void *arg)
 {
+    (void)arg;
     if (lvgl_port_lock(0))
     {
         if (container != NULL)

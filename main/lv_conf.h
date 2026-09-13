@@ -218,13 +218,13 @@
 #endif
 
 /* Use Renesas Dave2D on RA  platforms. */
-#define LV_USE_DRAW_DAVE2D 1
+#define LV_USE_DRAW_DAVE2D 0
 
 /* Draw using cached SDL textures*/
-#define LV_USE_DRAW_SDL 1
+#define LV_USE_DRAW_SDL 0
 
 /* Use VG-Lite GPU. */
-#define LV_USE_DRAW_VG_LITE 1
+#define LV_USE_DRAW_VG_LITE 0
 
 #if LV_USE_DRAW_VG_LITE
     /* Enable VG-Lite custom external 'gpu_init()' function */
@@ -493,7 +493,7 @@
 #define LV_FONT_MONTSERRAT_28_COMPRESSED 0  /*bpp = 3*/
 #define LV_FONT_DEJAVU_16_PERSIAN_HEBREW 0  /*Hebrew, Arabic, Persian letters and all their forms*/
 #define LV_FONT_SIMSUN_14_CJK            0  /*1000 most common CJK radicals*/
-#define LV_FONT_SIMSUN_16_CJK            0  /*1000 most common CJK radicals*/
+#define LV_FONT_SIMSUN_16_CJK            1  /*1000 most common CJK radicals*/
 
 /*Pixel perfect monospace fonts*/
 #define LV_FONT_UNSCII_8  0
@@ -502,10 +502,10 @@
 /*Optionally declare custom fonts here.
  *You can use these fonts as default font too and they will be available globally.
  *E.g. #define LV_FONT_CUSTOM_DECLARE   LV_FONT_DECLARE(my_font_1) LV_FONT_DECLARE(my_font_2)*/
-#define LV_FONT_CUSTOM_DECLARE
+#define LV_FONT_CUSTOM_DECLARE LV_FONT_DECLARE(font_china_16)
 
 /*Always set a default font*/
-#define LV_FONT_DEFAULT &lv_font_montserrat_14
+#define LV_FONT_DEFAULT &font_china_16
 
 /*Enable handling large font and/or fonts with a lot of characters.
  *The limit depends on the font size, font face and bpp.
@@ -667,7 +667,7 @@
 #if LV_USE_THEME_DEFAULT
 
     /*0: Light mode; 1: Dark mode*/
-    #define LV_THEME_DEFAULT_DARK 0
+    #define LV_THEME_DEFAULT_DARK 1
 
     /*1: Enable grow on press*/
     #define LV_THEME_DEFAULT_GROW 1

@@ -65,7 +65,7 @@ static void lock_screen_timeout_callback(TimerHandle_t xTimer);
  **********************/
 void ctrl_home_init(char *privateKeyStr);
 void ctrl_home_destroy(void);
-void ctrl_home_lock_screen(void);
+void ctrl_home_lock_screen(void *arg);
 
 /* wallet page */
 ctrl_home_network_data_t *ctrl_home_list_networks(void);
@@ -336,7 +336,7 @@ static void global_touch_event_handler(lv_event_t *e)
 static void lock_screen_timeout_callback(TimerHandle_t xTimer)
 {
     ESP_LOGI(TAG, "lock_screen_timeout_callback");
-    ctrl_home_lock_screen();
+    ctrl_home_lock_screen(NULL);
 }
 
 /**********************
@@ -370,10 +370,10 @@ void ctrl_home_destroy(void)
         vTaskDelay(pdMS_TO_TICKS(5));
     }
     ui_home_destroy();
-    if (wallet != NULL)
+    if (wallet != 0)
     {
         wallet_free(wallet);
-        wallet = NULL;
+        wallet = 0;
     }
     if (network_data != NULL)
     {
@@ -489,7 +489,7 @@ ctrl_home_network_data_t *ctrl_home_list_networks(void)
             ctrl_home_network_data_t *network_data_temp = (ctrl_home_network_data_t *)malloc(sizeof(ctrl_home_network_data_t));
             memset(network_data_temp, 0, sizeof(ctrl_home_network_data_t));
             {
-                network_data_temp->type = CTRL_HOME_NETWORK_TYPE_ETH;
+                network_data_temp->type = CTRL_HOME_NETWORK_TYPE_BTC_SEGWIT;
                 network_data_temp->icon = &logo_bitcoin;
                 strcpy(network_data_temp->name, "Bitcoin segwit");
                 Wallet _wallet = wallet_derive_btc(wallet, 0);
@@ -498,7 +498,19 @@ ctrl_home_network_data_t *ctrl_home_list_networks(void)
                 strcpy(network_data_temp->address, walletAddress);
                 network_data_temp->wallet_main = wallet;
                 network_data_temp->wallet_current = _wallet;
-                network_data_temp->compatible_wallet_group = NULL;
+                ctrl_home_compatible_wallet_group_t *compatible_wallet_group = (ctrl_home_compatible_wallet_group_t *)malloc(sizeof(ctrl_home_compatible_wallet_group_t));
+                {
+                    memset(compatible_wallet_group, 0, sizeof(ctrl_home_compatible_wallet_group_t));
+                    compatible_wallet_group->qr_type = CTRL_HOME_CONNECT_QR_TYPE_BLUEWALLET;
+                    ctrl_home_3rd_wallet_info_t *wallet_info_3rd_bluewallet = (ctrl_home_3rd_wallet_info_t *)malloc(sizeof(ctrl_home_3rd_wallet_info_t));
+                    memset(wallet_info_3rd_bluewallet, 0, sizeof(ctrl_home_3rd_wallet_info_t));
+                    strcpy(wallet_info_3rd_bluewallet->name, "BlueWallet");
+                    wallet_info_3rd_bluewallet->icon = &logo_bitcoin;
+                    wallet_info_3rd_bluewallet->next = NULL;
+                    compatible_wallet_group->wallet_info_3rd = wallet_info_3rd_bluewallet;
+                    compatible_wallet_group->next = NULL;
+                }
+                network_data_temp->compatible_wallet_group = compatible_wallet_group;
                 network_data_temp->next = NULL;
             }
             network_data_bitcoin_segwit = network_data_temp;
@@ -509,7 +521,7 @@ ctrl_home_network_data_t *ctrl_home_list_networks(void)
             ctrl_home_network_data_t *network_data_temp = (ctrl_home_network_data_t *)malloc(sizeof(ctrl_home_network_data_t));
             memset(network_data_temp, 0, sizeof(ctrl_home_network_data_t));
             {
-                network_data_temp->type = CTRL_HOME_NETWORK_TYPE_ETH;
+                network_data_temp->type = CTRL_HOME_NETWORK_TYPE_BTC_SEGWIT;
                 network_data_temp->icon = &logo_bitcoin;
                 strcpy(network_data_temp->name, "Bitcoin legacy");
                 Wallet _wallet = wallet_derive_btc(wallet, 0);
@@ -518,7 +530,19 @@ ctrl_home_network_data_t *ctrl_home_list_networks(void)
                 strcpy(network_data_temp->address, walletAddress);
                 network_data_temp->wallet_main = wallet;
                 network_data_temp->wallet_current = _wallet;
-                network_data_temp->compatible_wallet_group = NULL;
+                ctrl_home_compatible_wallet_group_t *compatible_wallet_group = (ctrl_home_compatible_wallet_group_t *)malloc(sizeof(ctrl_home_compatible_wallet_group_t));
+                {
+                    memset(compatible_wallet_group, 0, sizeof(ctrl_home_compatible_wallet_group_t));
+                    compatible_wallet_group->qr_type = CTRL_HOME_CONNECT_QR_TYPE_BLUEWALLET;
+                    ctrl_home_3rd_wallet_info_t *wallet_info_3rd_bluewallet = (ctrl_home_3rd_wallet_info_t *)malloc(sizeof(ctrl_home_3rd_wallet_info_t));
+                    memset(wallet_info_3rd_bluewallet, 0, sizeof(ctrl_home_3rd_wallet_info_t));
+                    strcpy(wallet_info_3rd_bluewallet->name, "BlueWallet");
+                    wallet_info_3rd_bluewallet->icon = &logo_bitcoin;
+                    wallet_info_3rd_bluewallet->next = NULL;
+                    compatible_wallet_group->wallet_info_3rd = wallet_info_3rd_bluewallet;
+                    compatible_wallet_group->next = NULL;
+                }
+                network_data_temp->compatible_wallet_group = compatible_wallet_group;
                 network_data_temp->next = NULL;
             }
             network_data_bitcoin_legacy = network_data_temp;
@@ -532,6 +556,17 @@ ctrl_home_network_data_t *ctrl_home_list_networks(void)
 }
 char *ctrl_home_get_connect_qrcode(ctrl_home_network_data_t *network, ctrl_home_connect_qr_type qr_type)
 {
+    if (qr_type == CTRL_HOME_CONNECT_QR_TYPE_BLUEWALLET)
+    {
+        if (strcmp(network->name, "Bitcoin segwit") == 0)
+        {
+            return wallet_get_btc_xpub(network->wallet_main, "m/84'/0'/0'");
+        }
+        else
+        {
+            return wallet_get_btc_xpub(network->wallet_main, "m/44'/0'/0'");
+        }
+    }
     char *hdkey = NULL;
     generate_metamask_crypto_hdkey(network->wallet_main, &hdkey);
     return hdkey;
@@ -550,7 +585,8 @@ void ctrl_home_scan_qr_stop(void)
 {
     scan_task_status_request = false;
 }
-void ctrl_home_lock_screen(void)
+void ctrl_home_lock_screen(void *arg)
 {
+    (void)arg;
     xEventGroupSetBits(event_group_global, EVENT_LOCK_SCREEN);
 }

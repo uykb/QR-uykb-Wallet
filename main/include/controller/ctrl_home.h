@@ -21,6 +21,7 @@ typedef enum
 {
     CTRL_HOME_CONNECT_QR_TYPE_METAMASK = 0,
     CTRL_HOME_CONNECT_QR_TYPE_TODO = 1,
+    CTRL_HOME_CONNECT_QR_TYPE_BLUEWALLET = 2,
 } ctrl_home_connect_qr_type;
 
 typedef struct __attribute__((aligned(4))) _ctrl_home_3rd_wallet_info_t
@@ -73,7 +74,7 @@ extern "C"
      **********************/
     void ctrl_home_init(char *privateKeyStr);
     void ctrl_home_destroy(void);
-    void ctrl_home_lock_screen(void);
+    void ctrl_home_lock_screen(void *arg);
 
     /* wallet page */
     ctrl_home_network_data_t *ctrl_home_list_networks(void);

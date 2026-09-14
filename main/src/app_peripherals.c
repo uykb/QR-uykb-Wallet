@@ -603,7 +603,9 @@ esp_err_t app_camera_init(void)
             s->set_lenc(s, 1);           // Lens Correction
             s->set_special_effect(s, 0); // No Effect
             s->set_brightness(s, 0);     // Normal Brightness
-            s->set_contrast(s, 0);       // Normal Contrast
+            s->set_contrast(s, 2);       // High Contrast (+2) for crisp QR black/white modules!
+            s->set_sharpness(s, 2);      // Maximum Sharpness (+2) for sharp edges!
+            s->set_denoise(s, 1);        // Enable Denoise Filter
             s->set_saturation(s, 0);     // Normal Saturation
         }
         else if (s->id.PID == OV3660_PID)
@@ -709,7 +711,7 @@ use_default:
 
     cached_peripherals_config.camera_module_config.xclk_freq_hz = 20000000;
     cached_peripherals_config.camera_module_config.pixelformat = PIXFORMAT_RGB565;
-    cached_peripherals_config.camera_module_config.framesize = FRAMESIZE_240X240;
+    cached_peripherals_config.camera_module_config.framesize = FRAMESIZE_VGA;
     cached_peripherals_config.camera_module_config.fb_count = 2;
     cached_peripherals_config.camera_module_config.swap_x = 0;
     cached_peripherals_config.camera_module_config.swap_y = 0;

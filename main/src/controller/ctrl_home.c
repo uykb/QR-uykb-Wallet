@@ -125,21 +125,7 @@ static void qrScannerTask(void *parameters)
     qrcode_protocol_bc_ur_init(qrcode_protocol_bc_ur_data);
 
     uint8_t *swap_buf = NULL;
-    uint8_t *line_buf = NULL;
-    int line_size = width * 2; // RGB565 2 bytes per pixel
     peripherals_config_t *peripherals_config = app_peripherals_read();
-    if (peripherals_config->camera_module_config.swap_x || peripherals_config->camera_module_config.swap_y)
-    {
-        swap_buf = (uint8_t *)malloc(line_size * width);
-        if (!peripherals_config->camera_module_config.swap_y)
-        {
-            line_buf = (uint8_t *)malloc(line_size);
-        }
-    }
-
-    img_buffer.header.w = fb->width;
-    img_buffer.header.h = fb->height;
-    img_buffer.data_size = line_size * width; // fb->len;
 
     esp_code_scanner_config_t config = {ESP_CODE_SCANNER_MODE_FAST, ESP_CODE_SCANNER_IMAGE_RGB565, fb->width, fb->height};
     esp_image_scanner_t *esp_scn = esp_code_scanner_create();
@@ -169,9 +155,12 @@ static void qrScannerTask(void *parameters)
             vTaskDelay(pdMS_TO_TICKS(10));
             continue;
         }
+        int w = fb->width;
+        int h = fb->height;
+
         if (swap_buf == NULL)
         {
-            swap_buf = (uint8_t *)malloc(line_size * width);
+            swap_buf = (uint8_t *)malloc(w * h * 2);
         }
         
         uint16_t *src_px = (uint16_t *)fb->buf;
@@ -179,23 +168,19 @@ static void qrScannerTask(void *parameters)
         bool do_swap_x = peripherals_config->camera_module_config.swap_x;
         bool do_swap_y = peripherals_config->camera_module_config.swap_y;
 
-        for (int y = 0; y < width; y++)
+        for (int y = 0; y < h; y++)
         {
-            int ny = do_swap_y ? (width - y - 1) : y;
-            for (int x = 0; x < width; x++)
+            int ny = do_swap_y ? (h - y - 1) : y;
+            for (int x = 0; x < w; x++)
             {
-                int nx = do_swap_x ? (width - x - 1) : x;
-                uint16_t p = src_px[y * width + x];
-                /* 
-                 * OV2640 outputs RGB565 in Big-Endian format (high byte first).
-                 * LVGL v9 on ESP32 expects Little-Endian. 
-                 * We must swap the high/low bytes of each pixel, otherwise the 
-                 * color space breaks completely, resulting in severe "halos" and 
-                 * psychedelic inverted colors.
-                 */
-                dst_px[ny * width + nx] = (p >> 8) | (p << 8);
+                int nx = do_swap_x ? (w - x - 1) : x;
+                uint16_t p = src_px[y * w + x];
+                dst_px[ny * w + nx] = (p >> 8) | (p << 8);
             }
         }
+        img_buffer.header.w = w;
+        img_buffer.header.h = h;
+        img_buffer.data_size = w * h * 2;
         img_buffer.data = swap_buf;
 
         ui_home_update_camera_preview(&img_buffer);
@@ -255,11 +240,6 @@ static void qrScannerTask(void *parameters)
     {
         free(swap_buf);
         swap_buf = NULL;
-    }
-    if (line_buf != NULL)
-    {
-        free(line_buf);
-        line_buf = NULL;
     }
     esp_camera_deinit();
     scan_task_status = false;

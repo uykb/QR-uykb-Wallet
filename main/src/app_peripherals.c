@@ -574,7 +574,9 @@ esp_err_t app_camera_init(void)
     {
         if (s->id.PID == OV3660_PID || s->id.PID == OV2640_PID)
         {
-            s->set_vflip(s, 1); // flip it back
+            /* Toggle vflip to fix the upside-down camera issue */
+            s->set_vflip(s, 0); 
+            s->set_hmirror(s, 0);
         }
         else if (s->id.PID == GC0308_PID)
         {

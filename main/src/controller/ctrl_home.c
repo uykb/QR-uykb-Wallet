@@ -169,34 +169,41 @@ static void qrScannerTask(void *parameters)
             vTaskDelay(pdMS_TO_TICKS(10));
             continue;
         }
-        if (peripherals_config->camera_module_config.swap_x || peripherals_config->camera_module_config.swap_y)
+        if (swap_buf == NULL)
         {
-            uint16_t *src_px = (uint16_t *)fb->buf;
-            uint16_t *dst_px = (uint16_t *)swap_buf;
-            bool do_swap_x = peripherals_config->camera_module_config.swap_x;
-            bool do_swap_y = peripherals_config->camera_module_config.swap_y;
-            for (int y = 0; y < width; y++)
+            swap_buf = (uint8_t *)malloc(line_size * width);
+        }
+        
+        uint16_t *src_px = (uint16_t *)fb->buf;
+        uint16_t *dst_px = (uint16_t *)swap_buf;
+        bool do_swap_x = peripherals_config->camera_module_config.swap_x;
+        bool do_swap_y = peripherals_config->camera_module_config.swap_y;
+
+        for (int y = 0; y < width; y++)
+        {
+            int ny = do_swap_y ? (width - y - 1) : y;
+            for (int x = 0; x < width; x++)
             {
-                int ny = do_swap_y ? (width - y - 1) : y;
-                for (int x = 0; x < width; x++)
-                {
-                    int nx = do_swap_x ? (width - x - 1) : x;
-                    dst_px[ny * width + nx] = src_px[y * width + x];
-                }
+                int nx = do_swap_x ? (width - x - 1) : x;
+                uint16_t p = src_px[y * width + x];
+                /* 
+                 * OV2640 outputs RGB565 in Big-Endian format (high byte first).
+                 * LVGL v9 on ESP32 expects Little-Endian. 
+                 * We must swap the high/low bytes of each pixel, otherwise the 
+                 * color space breaks completely, resulting in severe "halos" and 
+                 * psychedelic inverted colors.
+                 */
+                dst_px[ny * width + nx] = (p >> 8) | (p << 8);
             }
-            img_buffer.data = swap_buf;
         }
-        else
-        {
-            img_buffer.data = fb->buf;
-        }
+        img_buffer.data = swap_buf;
 
         ui_home_update_camera_preview(&img_buffer);
 
-        /* Run scanner decoding using the persistent scanner instance */
+        /* Run scanner decoding using the raw buffer (scanner algorithm may expect original endianness) */
         if (esp_scn != NULL)
         {
-            int decoded_num = esp_code_scanner_scan_image(esp_scn, img_buffer.data);
+            int decoded_num = esp_code_scanner_scan_image(esp_scn, fb->buf);
             if (decoded_num)
             {
                 time_start = xTaskGetTickCount();

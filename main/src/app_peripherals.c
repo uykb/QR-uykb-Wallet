@@ -570,22 +570,45 @@ esp_err_t app_camera_init(void)
     }
 
     sensor_t *s = esp_camera_sensor_get();
-    if (s->id.PID == OV3660_PID || s->id.PID == OV2640_PID)
-        s->set_vflip(s, 1); // flip it back
-    else if (s->id.PID == GC0308_PID)
+    if (s != NULL)
     {
-        s->set_hmirror(s, 0);
-    }
-    else if (s->id.PID == GC032A_PID)
-    {
-        s->set_vflip(s, 1);
-        // s->set_hmirror(s, 0); //something wrong
-    }
+        if (s->id.PID == OV3660_PID || s->id.PID == OV2640_PID)
+        {
+            s->set_vflip(s, 1); // flip it back
+        }
+        else if (s->id.PID == GC0308_PID)
+        {
+            s->set_hmirror(s, 0);
+        }
+        else if (s->id.PID == GC032A_PID)
+        {
+            s->set_vflip(s, 1);
+        }
 
-    if (s->id.PID == OV3660_PID)
-    {
-        s->set_brightness(s, 2);
-        s->set_contrast(s, 3);
+        if (s->id.PID == OV2640_PID)
+        {
+            s->set_whitebal(s, 1);       // Auto White Balance
+            s->set_awb_gain(s, 1);       // Auto AWB Gain
+            s->set_wb_mode(s, 0);        // Auto WB mode
+            s->set_exposure_ctrl(s, 1);  // Auto Exposure
+            s->set_aec2(s, 1);           // Auto Exposure DSP
+            s->set_ae_level(s, 0);       // Auto Exposure level
+            s->set_gain_ctrl(s, 1);      // Auto Gain Control
+            s->set_gainceiling(s, (gainceiling_t)2); // 4x Gain ceiling to prevent overexposure halos
+            s->set_bpc(s, 1);            // Black Pixel Correction
+            s->set_wpc(s, 1);            // White Pixel Correction
+            s->set_raw_gma(s, 1);        // Gamma Correction
+            s->set_lenc(s, 1);           // Lens Correction
+            s->set_special_effect(s, 0); // No Effect
+            s->set_brightness(s, 0);     // Normal Brightness
+            s->set_contrast(s, 0);       // Normal Contrast
+            s->set_saturation(s, 0);     // Normal Saturation
+        }
+        else if (s->id.PID == OV3660_PID)
+        {
+            s->set_brightness(s, 2);
+            s->set_contrast(s, 3);
+        }
     }
 
     return ESP_OK;

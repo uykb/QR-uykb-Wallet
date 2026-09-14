@@ -710,7 +710,7 @@ use_default:
     cached_peripherals_config.camera_module_config.framesize = FRAMESIZE_240X240;
     cached_peripherals_config.camera_module_config.fb_count = 2;
     cached_peripherals_config.camera_module_config.swap_x = 0;
-    cached_peripherals_config.camera_module_config.swap_y = 1;
+    cached_peripherals_config.camera_module_config.swap_y = 0;
 
     /* LCD - ST7789 240x320 */
     cached_peripherals_config.lcd_module = LCD_MODULE_ST7789;

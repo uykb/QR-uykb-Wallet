@@ -171,57 +171,17 @@ static void qrScannerTask(void *parameters)
         }
         if (peripherals_config->camera_module_config.swap_x || peripherals_config->camera_module_config.swap_y)
         {
-            int new_x;
-            int new_y;
-            if (peripherals_config->camera_module_config.swap_x && peripherals_config->camera_module_config.swap_y)
+            uint16_t *src_px = (uint16_t *)fb->buf;
+            uint16_t *dst_px = (uint16_t *)swap_buf;
+            bool do_swap_x = peripherals_config->camera_module_config.swap_x;
+            bool do_swap_y = peripherals_config->camera_module_config.swap_y;
+            for (int y = 0; y < width; y++)
             {
-                /*
-                 (0,0) -> (239,239)
-                 (0,1) -> (239,238)
-                 ...
-                 (239,238) -> (0,1)
-                 (239,239) -> (0,0)
-                 */
+                int ny = do_swap_y ? (width - y - 1) : y;
                 for (int x = 0; x < width; x++)
                 {
-                    for (int y = 0; y < width; y++)
-                    {
-                        new_x = width - x - 1;
-                        new_y = width - y - 1;
-                        memcpy(swap_buf + new_x * line_size + new_y, fb->buf + x * line_size + y, 2);
-                    }
-                }
-            }
-            else if (peripherals_config->camera_module_config.swap_x)
-            {
-                /*
-                 (0,0) -> (239,0)
-                 (0,1) -> (239,1)
-                 ...
-                 (239,238) -> (0,238)
-                 (239,239) -> (0,239)
-                 */
-                for (int x = 0; x < width; x++)
-                {
-                    for (int y = 0; y < width; y++)
-                    {
-                        new_x = width - x - 1;
-                        memcpy(swap_buf + new_x * line_size + y, fb->buf + x * line_size + y, 2);
-                    }
-                }
-            }
-            else if (peripherals_config->camera_module_config.swap_y)
-            {
-                /*
-               (0,0) -> (0,239)
-               (0,1) -> (0,238)
-               ...
-               (239,238) -> (239,1)
-               (239,239) -> (239,0)
-               */
-                for (int y = 0; y < width; y++)
-                {
-                    memcpy(swap_buf + y * line_size, fb->buf + (width - y - 1) * line_size, line_size);
+                    int nx = do_swap_x ? (width - x - 1) : x;
+                    dst_px[ny * width + nx] = src_px[y * width + x];
                 }
             }
             img_buffer.data = swap_buf;

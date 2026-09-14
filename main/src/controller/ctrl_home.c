@@ -86,8 +86,6 @@ bool ctrl_home_pin_max_attempts_set(int max_attempts);
  **********************/
 static void qrScannerTask(void *parameters)
 {
-    int width = 240;
-
     ctrl_home_scan_qr_data_t *scan_qr_data = (ctrl_home_scan_qr_data_t *)parameters;
     lv_obj_t *image = scan_qr_data->image;
     lv_obj_t *progress_bar = scan_qr_data->progress_bar;
@@ -109,12 +107,6 @@ static void qrScannerTask(void *parameters)
     if (fb == NULL)
     {
         ESP_LOGE(TAG, "camera get failed");
-        vTaskDelete(NULL);
-        return;
-    }
-    if (fb->width != width || fb->height != width)
-    {
-        ESP_LOGE(TAG, "camera not in 240x240");
         vTaskDelete(NULL);
         return;
     }

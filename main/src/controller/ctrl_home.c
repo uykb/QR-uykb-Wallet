@@ -200,11 +200,10 @@ static void qrScannerTask(void *parameters)
 
         ui_home_update_camera_preview(&img_buffer);
 
-        /* Run scanner decoding every 3 frames to avoid CPU starvation & WDT panics, 
-           and ensure buttery smooth camera preview rendering on the UI thread */
-        if (esp_scn != NULL && (frame_count % 3 == 0))
+        /* Run scanner decoding on the properly byte-swapped & oriented Little-Endian RGB565 image */
+        if (esp_scn != NULL && (frame_count % 2 == 0))
         {
-            int decoded_num = esp_code_scanner_scan_image(esp_scn, fb->buf);
+            int decoded_num = esp_code_scanner_scan_image(esp_scn, img_buffer.data);
             if (decoded_num)
             {
                 time_start = xTaskGetTickCount();
@@ -231,7 +230,7 @@ static void qrScannerTask(void *parameters)
         }
 
         esp_camera_fb_return(fb);
-        vTaskDelay(pdMS_TO_TICKS(20));
+        vTaskDelay(pdMS_TO_TICKS(10));
         frame_count++;
 
         if ((xTaskGetTickCount() - time_start) * portTICK_PERIOD_MS > LOCK_SCREEN_TIMEOUT_MS)

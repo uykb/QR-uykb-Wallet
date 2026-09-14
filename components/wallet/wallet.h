@@ -38,6 +38,7 @@ extern "C"
 
     char *wallet_root_private_key(Wallet wallet);
     void wallet_eth_key_fingerprint(Wallet wallet, publickey_fingerprint_t *fingerprint);
+    void wallet_get_master_fingerprint(Wallet wallet, char xfp_str[9]);
     Wallet wallet_derive(Wallet wallet, const char *path);
     Wallet wallet_derive_btc(Wallet wallet, unsigned int index);
     Wallet wallet_derive_eth(Wallet wallet, unsigned int index);

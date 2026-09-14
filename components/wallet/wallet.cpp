@@ -120,6 +120,13 @@ extern "C"
         memcpy(fingerprint->chain_code, account.xpub().chainCode, 32);
         account.xpub().fingerprint(fingerprint->fingerprint);
     }
+    void wallet_get_master_fingerprint(Wallet wallet, char xfp_str[9])
+    {
+        HDPrivateKey *_wallet = get_shared_ptr(wallet);
+        uint8_t fp[4];
+        _wallet->xpub().fingerprint(fp);
+        snprintf(xfp_str, 9, "%02x%02x%02x%02x", fp[0], fp[1], fp[2], fp[3]);
+    }
     Wallet wallet_derive(Wallet wallet, const char *path)
     {
         HDPrivateKey *_wallet = get_shared_ptr(wallet);

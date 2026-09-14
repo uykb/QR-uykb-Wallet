@@ -650,7 +650,7 @@ extern "C"
             cbor_value_calculate_string_length(&it, &len);
             uint8_t *bytes = (uint8_t *)malloc(len);
             cbor_value_copy_byte_string(&it, bytes, &len, nullptr);
-            std::string b64 = toBase64(bytes, len);
+            std::string b64 = toBase64(bytes, len, BASE64_STANDARD);
             free(bytes);
             *psbt_b64 = (char *)malloc(b64.length() + 1);
             strcpy(*psbt_b64, b64.c_str());
@@ -658,7 +658,7 @@ extern "C"
         }
         else
         {
-            std::string b64 = toBase64(payload_ptr, payload_len);
+            std::string b64 = toBase64(payload_ptr, payload_len, BASE64_STANDARD);
             *psbt_b64 = (char *)malloc(b64.length() + 1);
             strcpy(*psbt_b64, b64.c_str());
             return 0;

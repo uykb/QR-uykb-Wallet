@@ -195,6 +195,7 @@ static void phrase_choose_event_handler(lv_event_t *e)
                 {
                     lv_obj_set_scroll_dir(content_obj, LV_DIR_VER);
                     lv_obj_set_scrollbar_mode(content_obj, LV_SCROLLBAR_MODE_AUTO);
+                    lv_obj_set_style_bg_opa(content_obj, 0, 0);
                 }
                 lv_obj_t *text_label = lv_msgbox_add_text(mbox, text);
                 if (text_label)
@@ -557,6 +558,13 @@ void ui_mnemonic_init(lv_obj_t *lv_parent, size_t parent_width, size_t parent_he
         NO_BODER_PADDING_STYLE(keyboard);
         lv_obj_set_style_bg_color(keyboard, lv_color_hex(0x000000), 0);
         lv_obj_set_style_text_color(keyboard, lv_color_hex(0xffffff), 0);
+        
+        /* Set styles for the individual buttons inside the matrix */
+        lv_obj_set_style_bg_color(keyboard, lv_color_hex(0x2d3748), LV_PART_ITEMS);
+        lv_obj_set_style_text_color(keyboard, lv_color_hex(0xffffff), LV_PART_ITEMS);
+        lv_obj_set_style_border_width(keyboard, 1, LV_PART_ITEMS);
+        lv_obj_set_style_border_color(keyboard, lv_color_hex(0x4a5568), LV_PART_ITEMS);
+        
         lv_obj_align(keyboard, LV_ALIGN_BOTTOM_MID, 0, 0);
         lv_obj_set_grid_cell(keyboard, LV_GRID_ALIGN_STRETCH, 0, 1,
                              LV_GRID_ALIGN_STRETCH, 2, 1);

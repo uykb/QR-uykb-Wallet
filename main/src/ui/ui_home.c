@@ -352,8 +352,25 @@ static void ui_event_handler(lv_event_t *e)
             if (lvgl_port_lock(0))
             {
                 erase_msgbox = lv_msgbox_create(NULL);
-                lv_msgbox_add_title(erase_msgbox, lang_str(STR_ERASE_CONFIRM_TITLE));
-                lv_msgbox_add_text(erase_msgbox, lang_str(STR_ERASE_CONFIRM_TEXT));
+                
+                const lv_font_t *font = lang_font();
+                if (font)
+                {
+                    lv_obj_set_style_text_font(erase_msgbox, font, 0);
+                }
+                
+                lv_obj_t *title = lv_msgbox_add_title(erase_msgbox, lang_str(STR_ERASE_CONFIRM_TITLE));
+                if (title && font)
+                {
+                    lv_obj_set_style_text_font(title, font, 0);
+                }
+                
+                lv_obj_t *text = lv_msgbox_add_text(erase_msgbox, lang_str(STR_ERASE_CONFIRM_TEXT));
+                if (text && font)
+                {
+                    lv_obj_set_style_text_font(text, font, 0);
+                }
+                
                 lv_obj_set_size(erase_msgbox, lv_pct(100), LV_SIZE_CONTENT);
                 lv_obj_t *btn;
                 btn = lv_msgbox_add_footer_button(erase_msgbox, lang_str(STR_ERASE));

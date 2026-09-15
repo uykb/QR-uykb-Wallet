@@ -28,9 +28,7 @@
 #include "esp_lcd_touch_gt1151.h"
 #include "esp_lcd_touch_gt911.h"
 #include "esp_lcd_touch_tt21100.h"
-
-/* New I2C master driver for ESP-IDF v5.x */
-#include "driver/i2c_master.h"
+#include "driver/i2c.h"
 
 /*********************
  *      DEFINES
@@ -179,19 +177,20 @@ static esp_err_t touch_init(void)
 {
     peripherals_config_t *config = app_peripherals_read();
 
-    /* Initialize I2C using new master bus API (ESP-IDF v5.x) */
-    i2c_master_bus_config_t i2c_mst_config = {
-        .i2c_port = config->touch_module_config.i2c_num,
+    /* Initialize legacy I2C driver on i2c_num to avoid driver_ng conflict with esp32-camera */
+    i2c_config_t i2c_conf = {
+        .mode = I2C_MODE_MASTER,
         .sda_io_num = config->touch_module_config.i2c_sda,
         .scl_io_num = config->touch_module_config.i2c_scl,
-        .clk_source = I2C_CLK_SRC_DEFAULT,
-        .glitch_ignore_cnt = 7,
-        .flags.enable_internal_pullup = true,
+        .sda_pullup_en = GPIO_PULLUP_ENABLE,
+        .scl_pullup_en = GPIO_PULLUP_ENABLE,
+        .master.clk_speed = config->touch_module_config.i2c_clk_hz,
     };
-    i2c_master_bus_handle_t i2c_bus = NULL;
-    ESP_RETURN_ON_ERROR(i2c_new_master_bus(&i2c_mst_config, &i2c_bus), TAG, "I2C master bus init failed");
+    i2c_param_config(config->touch_module_config.i2c_num, &i2c_conf);
+    i2c_driver_install(config->touch_module_config.i2c_num, i2c_conf.mode, 0, 0, 0);
 
-    /* Initialize touch HW */
+    esp_lcd_i2c_bus_handle_t i2c_bus_handle = (esp_lcd_i2c_bus_handle_t)(uintptr_t)config->touch_module_config.i2c_num;
+
     const esp_lcd_touch_config_t tp_cfg = {
         .x_max = config->lcd_module_config.h_res,
         .y_max = config->lcd_module_config.v_res,
@@ -210,44 +209,38 @@ static esp_err_t touch_init(void)
     esp_lcd_panel_io_handle_t tp_io_handle = NULL;
     if (config->touch_module == TOUCH_MODULE_CST816S)
     {
-        esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_CST816S_CONFIG();
-        tp_io_config.scl_speed_hz = config->touch_module_config.i2c_clk_hz;
-        ESP_RETURN_ON_ERROR(esp_lcd_new_panel_io_i2c(i2c_bus, &tp_io_config, &tp_io_handle), TAG, "");
+        const esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_CST816S_CONFIG();
+        ESP_RETURN_ON_ERROR(esp_lcd_new_panel_io_i2c(i2c_bus_handle, &tp_io_config, &tp_io_handle), TAG, "");
         return esp_lcd_touch_new_i2c_cst816s(tp_io_handle, &tp_cfg, &touch_handle);
     }
     else if (config->touch_module == TOUCH_MODULE_FT5X06)
     {
-        esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_FT5x06_CONFIG();
-        tp_io_config.scl_speed_hz = config->touch_module_config.i2c_clk_hz;
-        ESP_RETURN_ON_ERROR(esp_lcd_new_panel_io_i2c(i2c_bus, &tp_io_config, &tp_io_handle), TAG, "");
+        const esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_FT5x06_CONFIG();
+        ESP_RETURN_ON_ERROR(esp_lcd_new_panel_io_i2c(i2c_bus_handle, &tp_io_config, &tp_io_handle), TAG, "");
         return esp_lcd_touch_new_i2c_ft5x06(tp_io_handle, &tp_cfg, &touch_handle);
     }
     else if (config->touch_module == TOUCH_MODULE_FT6X36)
     {
-        esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_FT5x06_CONFIG();
-        tp_io_config.scl_speed_hz = config->touch_module_config.i2c_clk_hz;
-        ESP_RETURN_ON_ERROR(esp_lcd_new_panel_io_i2c(i2c_bus, &tp_io_config, &tp_io_handle), TAG, "");
+        const esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_FT5x06_CONFIG();
+        ESP_RETURN_ON_ERROR(esp_lcd_new_panel_io_i2c(i2c_bus_handle, &tp_io_config, &tp_io_handle), TAG, "");
         return esp_lcd_touch_new_i2c_ft5x06(tp_io_handle, &tp_cfg, &touch_handle);
     }
     else if (config->touch_module == TOUCH_MODULE_GT1151)
     {
-        esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_GT1151_CONFIG();
-        tp_io_config.scl_speed_hz = config->touch_module_config.i2c_clk_hz;
-        ESP_RETURN_ON_ERROR(esp_lcd_new_panel_io_i2c(i2c_bus, &tp_io_config, &tp_io_handle), TAG, "");
+        const esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_GT1151_CONFIG();
+        ESP_RETURN_ON_ERROR(esp_lcd_new_panel_io_i2c(i2c_bus_handle, &tp_io_config, &tp_io_handle), TAG, "");
         return esp_lcd_touch_new_i2c_gt1151(tp_io_handle, &tp_cfg, &touch_handle);
     }
     else if (config->touch_module == TOUCH_MODULE_GT911)
     {
-        esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_GT911_CONFIG();
-        tp_io_config.scl_speed_hz = config->touch_module_config.i2c_clk_hz;
-        ESP_RETURN_ON_ERROR(esp_lcd_new_panel_io_i2c(i2c_bus, &tp_io_config, &tp_io_handle), TAG, "");
+        const esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_GT911_CONFIG();
+        ESP_RETURN_ON_ERROR(esp_lcd_new_panel_io_i2c(i2c_bus_handle, &tp_io_config, &tp_io_handle), TAG, "");
         return esp_lcd_touch_new_i2c_gt911(tp_io_handle, &tp_cfg, &touch_handle);
     }
     else if (config->touch_module == TOUCH_MODULE_TT21100)
     {
-        esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_TT21100_CONFIG();
-        tp_io_config.scl_speed_hz = config->touch_module_config.i2c_clk_hz;
-        ESP_RETURN_ON_ERROR(esp_lcd_new_panel_io_i2c(i2c_bus, &tp_io_config, &tp_io_handle), TAG, "");
+        const esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_TT21100_CONFIG();
+        ESP_RETURN_ON_ERROR(esp_lcd_new_panel_io_i2c(i2c_bus_handle, &tp_io_config, &tp_io_handle), TAG, "");
         return esp_lcd_touch_new_i2c_tt21100(tp_io_handle, &tp_cfg, &touch_handle);
     }
     else

@@ -180,8 +180,19 @@ static void phrase_choose_event_handler(lv_event_t *e)
                 lv_obj_set_style_border_width(mbox, 0, 0);
                 lv_obj_set_style_radius(mbox, 0, 0);
                 lv_obj_center(mbox);
+                /* Apply font so Chinese characters render correctly */
+                const lv_font_t *mbox_font = lang_font();
+                if (mbox_font)
+                {
+                    lv_obj_set_style_text_font(mbox, mbox_font, 0);
+                }
 
-                lv_msgbox_add_title(mbox, lang_str(STR_MNEMONIC_PHRASE));
+                lv_obj_t *title_lbl = lv_msgbox_add_title(mbox, lang_str(STR_MNEMONIC_PHRASE));
+                if (title_lbl && mbox_font)
+                {
+                    lv_obj_set_style_text_font(title_lbl, mbox_font, 0);
+                    lv_obj_set_style_text_color(title_lbl, lv_color_hex(0xffffff), 0);
+                }
 
                 char *text = malloc(sizeof(char) * 15 * phrases_len + 32);
                 text[0] = '\0';
@@ -203,6 +214,10 @@ static void phrase_choose_event_handler(lv_event_t *e)
                 if (text_label)
                 {
                     lv_obj_set_style_text_color(text_label, lv_color_hex(0xffffff), 0);
+                    if (mbox_font)
+                    {
+                        lv_obj_set_style_text_font(text_label, mbox_font, 0);
+                    }
                 }
                 free(text);
 
@@ -262,7 +277,7 @@ static const char *letter_strs[26] = {
     "A", "B", "C", "D", "E", "F", "G", "H", "I", "J",
     "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T",
     "U", "V", "W", "X", "Y", "Z"};
-static const char *dynamic_btnm_map[10];
+static const char *dynamic_btnm_map[16]; /* 3x3 = 9 buttons + 2 newlines + terminator + spare */
 
 static void update_keyboard_button()
 {
@@ -304,16 +319,16 @@ static void update_keyboard_button()
             cue_to = BIP39_WORDLIST_LEN - 1;
         }
 
-        size_t total_pages = (cue_letter_len + 5) / 6;
+        size_t total_pages = (cue_letter_len + 8) / 9;
         if (total_pages == 0) total_pages = 1;
         if (page_idx >= total_pages)
         {
             page_idx = 0;
         }
 
-        size_t start = page_idx * 6;
+        size_t start = page_idx * 9;
         size_t count = (start < cue_letter_len) ? (cue_letter_len - start) : 0;
-        if (count > 6) count = 6;
+        if (count > 9) count = 9;
 
         size_t map_i = 0;
         if (count == 0)
@@ -326,7 +341,8 @@ static void update_keyboard_button()
             {
                 char c = cue_letter[start + i];
                 dynamic_btnm_map[map_i++] = (c >= 'a' && c <= 'z') ? letter_strs[c - 'a'] : "?";
-                if (i == 2 && count > 3)
+                /* newline after 3rd and 6th button to form 3x3 */
+                if ((i == 2 || i == 5) && count > (i + 1))
                 {
                     dynamic_btnm_map[map_i++] = "\n";
                 }
@@ -468,7 +484,7 @@ static void gesture_event_handler(lv_event_t *e)
         /* Only trigger on horizontal swipe with enough distance, not a tap */
         if (LV_ABS(dx) < 30 || LV_ABS(dx) < LV_ABS(dy) * 2) return;
 
-        size_t total_pages = (cue_letter_len + 5) / 6;
+        size_t total_pages = (cue_letter_len + 8) / 9;
         if (total_pages <= 1) return;
 
         if (dx < 0) /* swipe left = next page */
@@ -551,14 +567,14 @@ void ui_mnemonic_init(lv_obj_t *lv_parent, size_t parent_width, size_t parent_he
         lv_obj_set_grid_cell(content, LV_GRID_ALIGN_STRETCH, 0, 1,
                              LV_GRID_ALIGN_STRETCH, 0, 1);
 
-        /* words_bar container (words list + top-right DEL button) */
+        /* words_bar container (candidate words list only, full width) */
         lv_obj_t *words_bar = lv_obj_create(current_page);
         NO_BODER_PADDING_STYLE(words_bar);
         lv_obj_set_style_bg_opa(words_bar, 255, 0);
         lv_obj_set_style_bg_color(words_bar, lv_color_hex(0x000000), 0);
         lv_obj_set_size(words_bar, lv_pct(100), lv_pct(100));
         lv_obj_set_flex_flow(words_bar, LV_FLEX_FLOW_ROW);
-        lv_obj_set_flex_align(words_bar, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+        lv_obj_set_flex_align(words_bar, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
         lv_obj_set_grid_cell(words_bar, LV_GRID_ALIGN_STRETCH, 0, 1,
                              LV_GRID_ALIGN_STRETCH, 1, 1);
         lv_obj_set_style_pad_left(words_bar, 5, 0);
@@ -575,16 +591,21 @@ void ui_mnemonic_init(lv_obj_t *lv_parent, size_t parent_width, size_t parent_he
         lv_obj_set_flex_align(words, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
         lv_obj_set_scrollbar_mode(words, LV_SCROLLBAR_MODE_OFF);
 
-        /* btn_del (top right Backspace button) */
-        lv_obj_t *btn_del = lv_button_create(words_bar);
-        lv_obj_set_size(btn_del, 45, 32);
+        /* DEL button: floating at top-right corner of current_page, aligned with the back button in master_page header */
+        lv_obj_t *btn_del = lv_button_create(current_page);
+        lv_obj_set_size(btn_del, 54, 36);
         lv_obj_set_style_bg_opa(btn_del, 255, 0);
-        lv_obj_set_style_bg_color(btn_del, lv_color_hex(0x4a5568), 0);
-        lv_obj_set_style_radius(btn_del, 4, 0);
+        lv_obj_set_style_bg_color(btn_del, lv_color_hex(0x2d3748), 0);
+        lv_obj_set_style_border_width(btn_del, 1, 0);
+        lv_obj_set_style_border_color(btn_del, lv_color_hex(0x4a5568), 0);
+        lv_obj_set_style_radius(btn_del, 0, 0);
         lv_obj_set_style_pad_all(btn_del, 0, 0);
+        lv_obj_set_pos(btn_del, (int32_t)parent_width - 54, 0);
+        lv_obj_set_style_margin_all(btn_del, 0, 0);
         lv_obj_t *del_label = lv_label_create(btn_del);
-        lv_label_set_text(del_label, "DEL");
+        lv_label_set_text(del_label, LV_SYMBOL_BACKSPACE);
         lv_obj_set_style_text_color(del_label, lv_color_hex(0xffffff), 0);
+        lv_obj_set_style_text_font(del_label, &lv_font_montserrat_16, 0);
         lv_obj_center(del_label);
         lv_obj_add_event_cb(btn_del, del_btn_event_handler, LV_EVENT_CLICKED, NULL);
 

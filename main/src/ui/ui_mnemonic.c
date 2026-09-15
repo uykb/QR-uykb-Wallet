@@ -494,6 +494,13 @@ void ui_mnemonic_init(lv_obj_t *lv_parent, size_t parent_width, size_t parent_he
         lv_obj_set_size(current_page, parent_width, parent_height);
         lv_obj_set_layout(current_page, LV_LAYOUT_GRID);
         NO_BODER_PADDING_STYLE(current_page);
+        
+        lv_obj_set_style_bg_color(current_page, lv_color_hex(0x000000), 0);
+        lv_obj_set_style_text_color(current_page, lv_color_hex(0xffffff), 0);
+        const lv_font_t *f = lang_font();
+        if (f) {
+            lv_obj_set_style_text_font(current_page, f, 0);
+        }
 
         /* content */
         content = lv_obj_create(current_page);
@@ -503,6 +510,7 @@ void ui_mnemonic_init(lv_obj_t *lv_parent, size_t parent_width, size_t parent_he
         lv_obj_set_style_outline_width(content, 0, 0);
         lv_obj_set_scrollbar_mode(content, LV_SCROLLBAR_MODE_AUTO);
         lv_obj_set_style_pad_bottom(content, 40, 0);
+        lv_obj_set_style_bg_color(content, lv_color_hex(0x000000), 0);
 
         lv_obj_set_size(content, lv_pct(100), lv_pct(100));
         lv_obj_align(content, LV_ALIGN_CENTER, 0, 0);
@@ -513,6 +521,7 @@ void ui_mnemonic_init(lv_obj_t *lv_parent, size_t parent_width, size_t parent_he
         /* words_bar container (words list + top-right DEL button) */
         lv_obj_t *words_bar = lv_obj_create(current_page);
         NO_BODER_PADDING_STYLE(words_bar);
+        lv_obj_set_style_bg_color(words_bar, lv_color_hex(0x000000), 0);
         lv_obj_set_size(words_bar, lv_pct(100), lv_pct(100));
         lv_obj_set_flex_flow(words_bar, LV_FLEX_FLOW_ROW);
         lv_obj_set_flex_align(words_bar, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
@@ -524,6 +533,7 @@ void ui_mnemonic_init(lv_obj_t *lv_parent, size_t parent_width, size_t parent_he
         /* words */
         words = lv_obj_create(words_bar);
         NO_BODER_PADDING_STYLE(words);
+        lv_obj_set_style_bg_color(words, lv_color_hex(0x000000), 0);
         lv_obj_set_flex_grow(words, 1);
         lv_obj_set_height(words, lv_pct(100));
         lv_obj_set_flex_flow(words, LV_FLEX_FLOW_ROW);
@@ -537,7 +547,7 @@ void ui_mnemonic_init(lv_obj_t *lv_parent, size_t parent_width, size_t parent_he
         lv_obj_set_style_radius(btn_del, 4, 0);
         lv_obj_set_style_pad_all(btn_del, 0, 0);
         lv_obj_t *del_label = lv_label_create(btn_del);
-        lv_label_set_text(del_label, LV_SYMBOL_BACKSPACE);
+        lv_label_set_text(del_label, "DEL");
         lv_obj_set_style_text_color(del_label, lv_color_hex(0xffffff), 0);
         lv_obj_center(del_label);
         lv_obj_add_event_cb(btn_del, del_btn_event_handler, LV_EVENT_CLICKED, NULL);
@@ -545,6 +555,8 @@ void ui_mnemonic_init(lv_obj_t *lv_parent, size_t parent_width, size_t parent_he
         /* keyboard */
         keyboard = lv_btnmatrix_create(current_page);
         NO_BODER_PADDING_STYLE(keyboard);
+        lv_obj_set_style_bg_color(keyboard, lv_color_hex(0x000000), 0);
+        lv_obj_set_style_text_color(keyboard, lv_color_hex(0xffffff), 0);
         lv_obj_align(keyboard, LV_ALIGN_BOTTOM_MID, 0, 0);
         lv_obj_set_grid_cell(keyboard, LV_GRID_ALIGN_STRETCH, 0, 1,
                              LV_GRID_ALIGN_STRETCH, 2, 1);

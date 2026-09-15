@@ -605,7 +605,6 @@ void ui_mnemonic_init(lv_obj_t *lv_parent, size_t parent_width, size_t parent_he
         lv_obj_t *del_label = lv_label_create(btn_del);
         lv_label_set_text(del_label, LV_SYMBOL_BACKSPACE);
         lv_obj_set_style_text_color(del_label, lv_color_hex(0xffffff), 0);
-        lv_obj_set_style_text_font(del_label, &lv_font_montserrat_16, 0);
         lv_obj_center(del_label);
         lv_obj_add_event_cb(btn_del, del_btn_event_handler, LV_EVENT_CLICKED, NULL);
 

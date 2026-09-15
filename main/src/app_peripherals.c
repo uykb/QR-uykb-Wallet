@@ -292,6 +292,32 @@ static esp_err_t lvgl_init(void)
     };
     lvgl_touch_indev = lvgl_port_add_touch(&touch_cfg);
 
+    /* Apply global dark theme to the active screen */
+    if (lvgl_port_lock(0))
+    {
+        lv_obj_t *scr = lv_screen_active();
+        if (scr)
+        {
+            lv_obj_set_style_bg_color(scr, lv_color_hex(0x000000), 0);
+            lv_obj_set_style_bg_opa(scr, 255, 0);
+        }
+
+        /* Use LVGL's built-in dark theme */
+        lv_display_t *disp = lv_display_get_default();
+        if (disp)
+        {
+            lv_theme_t *theme = lv_theme_default_init(
+                disp,
+                lv_palette_main(LV_PALETTE_BLUE),
+                lv_palette_main(LV_PALETTE_CYAN),
+                true, /* dark mode = true */
+                LV_FONT_DEFAULT
+            );
+            lv_display_set_theme(disp, theme);
+        }
+        lvgl_port_unlock();
+    }
+
     return ESP_OK;
 }
 static uint32_t checksum(peripherals_config_t *peripherals_config)

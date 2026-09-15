@@ -37,6 +37,7 @@ static char cue_letter[26];
 static size_t cue_letter_len;
 static int mnemonic_type;
 static lv_obj_t *event_target;
+static size_t page_idx = 0;
 /**********************
  *  STATIC PROTOTYPES
  **********************/
@@ -116,7 +117,7 @@ static void msgbox_retry_event_handler(lv_event_t *e)
         /* Reset phrase input to start over */
         phrases_len = 0;
         current_input[0] = '\0';
-        sel_idx = 0;
+        page_idx = 0;
         lv_obj_clean(content);
         update_keyboard_button();
 
@@ -136,7 +137,7 @@ static void phrase_choose_event_handler(lv_event_t *e)
                 phrases[phrases_len] = item_arg;
                 phrases_len++;
                 current_input[0] = '\0';
-                sel_idx = 0;
+                page_idx = 0;
                 {
                     lv_obj_t *obj = lv_button_create(content);
                     lv_obj_remove_flag(obj, LV_OBJ_FLAG_CLICKABLE);
@@ -257,7 +258,6 @@ static const char *letter_strs[26] = {
     "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T",
     "U", "V", "W", "X", "Y", "Z"};
 static const char *dynamic_btnm_map[10];
-static size_t page_idx = 0;
 
 static void update_keyboard_button()
 {

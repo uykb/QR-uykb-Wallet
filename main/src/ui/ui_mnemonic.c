@@ -142,6 +142,7 @@ static void phrase_choose_event_handler(lv_event_t *e)
                     lv_obj_t *obj = lv_button_create(content);
                     lv_obj_remove_flag(obj, LV_OBJ_FLAG_CLICKABLE);
                     lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                    lv_obj_set_style_bg_opa(obj, 255, 0);
                     lv_obj_set_style_bg_color(obj, lv_color_hex(0x2d3748), 0);
                     lv_obj_set_style_border_width(obj, 1, 0);
                     lv_obj_set_style_border_color(obj, lv_color_hex(0x4a5568), 0);
@@ -174,6 +175,7 @@ static void phrase_choose_event_handler(lv_event_t *e)
 
                 lv_obj_t *mbox = lv_msgbox_create(NULL);
                 lv_obj_set_size(mbox, lv_pct(100), lv_pct(100));
+                lv_obj_set_style_bg_opa(mbox, 255, 0);
                 lv_obj_set_style_bg_color(mbox, lv_color_hex(0x121824), 0);
                 lv_obj_set_style_border_width(mbox, 0, 0);
                 lv_obj_set_style_radius(mbox, 0, 0);
@@ -206,12 +208,14 @@ static void phrase_choose_event_handler(lv_event_t *e)
 
                 lv_obj_t *btn_confirm = lv_msgbox_add_footer_button(mbox, lang_str(STR_CONFIRM));
                 lv_obj_set_size(btn_confirm, 90, 38);
+                lv_obj_set_style_bg_opa(btn_confirm, 255, 0);
                 lv_obj_set_style_bg_color(btn_confirm, lv_color_hex(0x2b6cb0), 0);
                 lv_obj_set_style_text_color(btn_confirm, lv_color_hex(0xffffff), 0);
                 lv_obj_add_event_cb(btn_confirm, msgbox_confirm_event_handler, LV_EVENT_CLICKED, mbox);
 
                 lv_obj_t *btn_retry = lv_msgbox_add_footer_button(mbox, lang_str(STR_RETRY));
                 lv_obj_set_size(btn_retry, 90, 38);
+                lv_obj_set_style_bg_opa(btn_retry, 255, 0);
                 lv_obj_set_style_bg_color(btn_retry, lv_color_hex(0x4a5568), 0);
                 lv_obj_set_style_text_color(btn_retry, lv_color_hex(0xffffff), 0);
                 lv_obj_add_event_cb(btn_retry, msgbox_retry_event_handler, LV_EVENT_CLICKED, mbox);
@@ -347,6 +351,7 @@ static void update_keyboard_button()
                 }
                 lv_obj_t *obj = lv_button_create(words);
                 lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                lv_obj_set_style_bg_opa(obj, 255, 0);
                 lv_obj_set_style_bg_color(obj, lv_color_hex(0x2d3748), 0);
                 lv_obj_set_style_border_width(obj, 1, 0);
                 lv_obj_set_style_border_color(obj, lv_color_hex(0x4a5568), 0);
@@ -496,6 +501,7 @@ void ui_mnemonic_init(lv_obj_t *lv_parent, size_t parent_width, size_t parent_he
         lv_obj_set_layout(current_page, LV_LAYOUT_GRID);
         NO_BODER_PADDING_STYLE(current_page);
         
+        lv_obj_set_style_bg_opa(current_page, 255, 0);
         lv_obj_set_style_bg_color(current_page, lv_color_hex(0x000000), 0);
         lv_obj_set_style_text_color(current_page, lv_color_hex(0xffffff), 0);
         const lv_font_t *f = lang_font();
@@ -511,6 +517,7 @@ void ui_mnemonic_init(lv_obj_t *lv_parent, size_t parent_width, size_t parent_he
         lv_obj_set_style_outline_width(content, 0, 0);
         lv_obj_set_scrollbar_mode(content, LV_SCROLLBAR_MODE_AUTO);
         lv_obj_set_style_pad_bottom(content, 40, 0);
+        lv_obj_set_style_bg_opa(content, 255, 0);
         lv_obj_set_style_bg_color(content, lv_color_hex(0x000000), 0);
 
         lv_obj_set_size(content, lv_pct(100), lv_pct(100));
@@ -522,6 +529,7 @@ void ui_mnemonic_init(lv_obj_t *lv_parent, size_t parent_width, size_t parent_he
         /* words_bar container (words list + top-right DEL button) */
         lv_obj_t *words_bar = lv_obj_create(current_page);
         NO_BODER_PADDING_STYLE(words_bar);
+        lv_obj_set_style_bg_opa(words_bar, 255, 0);
         lv_obj_set_style_bg_color(words_bar, lv_color_hex(0x000000), 0);
         lv_obj_set_size(words_bar, lv_pct(100), lv_pct(100));
         lv_obj_set_flex_flow(words_bar, LV_FLEX_FLOW_ROW);
@@ -534,6 +542,7 @@ void ui_mnemonic_init(lv_obj_t *lv_parent, size_t parent_width, size_t parent_he
         /* words */
         words = lv_obj_create(words_bar);
         NO_BODER_PADDING_STYLE(words);
+        lv_obj_set_style_bg_opa(words, 255, 0);
         lv_obj_set_style_bg_color(words, lv_color_hex(0x000000), 0);
         lv_obj_set_flex_grow(words, 1);
         lv_obj_set_height(words, lv_pct(100));
@@ -544,6 +553,7 @@ void ui_mnemonic_init(lv_obj_t *lv_parent, size_t parent_width, size_t parent_he
         /* btn_del (top right Backspace button) */
         lv_obj_t *btn_del = lv_button_create(words_bar);
         lv_obj_set_size(btn_del, 45, 32);
+        lv_obj_set_style_bg_opa(btn_del, 255, 0);
         lv_obj_set_style_bg_color(btn_del, lv_color_hex(0x4a5568), 0);
         lv_obj_set_style_radius(btn_del, 4, 0);
         lv_obj_set_style_pad_all(btn_del, 0, 0);
@@ -554,12 +564,14 @@ void ui_mnemonic_init(lv_obj_t *lv_parent, size_t parent_width, size_t parent_he
         lv_obj_add_event_cb(btn_del, del_btn_event_handler, LV_EVENT_CLICKED, NULL);
 
         /* keyboard */
-        keyboard = lv_btnmatrix_create(current_page);
+        keyboard = lv_buttonmatrix_create(current_page);
         NO_BODER_PADDING_STYLE(keyboard);
+        lv_obj_set_style_bg_opa(keyboard, 255, 0);
         lv_obj_set_style_bg_color(keyboard, lv_color_hex(0x000000), 0);
         lv_obj_set_style_text_color(keyboard, lv_color_hex(0xffffff), 0);
         
         /* Set styles for the individual buttons inside the matrix */
+        lv_obj_set_style_bg_opa(keyboard, 255, LV_PART_ITEMS);
         lv_obj_set_style_bg_color(keyboard, lv_color_hex(0x2d3748), LV_PART_ITEMS);
         lv_obj_set_style_text_color(keyboard, lv_color_hex(0xffffff), LV_PART_ITEMS);
         lv_obj_set_style_border_width(keyboard, 1, LV_PART_ITEMS);

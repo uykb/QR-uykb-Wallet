@@ -30,6 +30,7 @@ static lv_obj_t *current_page;
 static lv_obj_t *content;
 static lv_obj_t *keyboard;
 static lv_obj_t *words;
+static lv_obj_t *btn_del;
 static char *current_input;
 static int cue_from;
 static int cue_to;
@@ -104,7 +105,7 @@ static void msgbox_retry_event_handler(lv_event_t *e)
         lv_obj_t *mbox = lv_event_get_user_data(e);
         lv_msgbox_close(mbox);
 
-        /* Restore keyboard and words bar visibility */
+        /* Restore keyboard, words bar, and btn_del visibility */
         if (keyboard)
         {
             lv_obj_remove_flag(keyboard, LV_OBJ_FLAG_HIDDEN);
@@ -112,6 +113,10 @@ static void msgbox_retry_event_handler(lv_event_t *e)
         if (words)
         {
             lv_obj_remove_flag(words, LV_OBJ_FLAG_HIDDEN);
+        }
+        if (btn_del)
+        {
+            lv_obj_remove_flag(btn_del, LV_OBJ_FLAG_HIDDEN);
         }
 
         /* Reset phrase input to start over */
@@ -163,7 +168,7 @@ static void phrase_choose_event_handler(lv_event_t *e)
         {
             if (lvgl_port_lock(0))
             {
-                /* Hide keyboard and word suggestion bar so they don't overlap with the confirmation modal */
+                /* Hide keyboard, word suggestion bar, and btn_del so they don't overlap with the confirmation modal */
                 if (keyboard)
                 {
                     lv_obj_add_flag(keyboard, LV_OBJ_FLAG_HIDDEN);
@@ -171,6 +176,10 @@ static void phrase_choose_event_handler(lv_event_t *e)
                 if (words)
                 {
                     lv_obj_add_flag(words, LV_OBJ_FLAG_HIDDEN);
+                }
+                if (btn_del)
+                {
+                    lv_obj_add_flag(btn_del, LV_OBJ_FLAG_HIDDEN);
                 }
 
                 lv_obj_t *mbox = lv_msgbox_create(NULL);
@@ -591,16 +600,18 @@ void ui_mnemonic_init(lv_obj_t *lv_parent, size_t parent_width, size_t parent_he
         lv_obj_set_flex_align(words, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
         lv_obj_set_scrollbar_mode(words, LV_SCROLLBAR_MODE_OFF);
 
-        /* DEL button: floating at top-right corner of current_page, aligned with the back button in master_page header */
-        lv_obj_t *btn_del = lv_button_create(current_page);
-        lv_obj_set_size(btn_del, 54, 36);
-        lv_obj_set_style_bg_opa(btn_del, 255, 0);
-        lv_obj_set_style_bg_color(btn_del, lv_color_hex(0x2d3748), 0);
-        lv_obj_set_style_border_width(btn_del, 1, 0);
-        lv_obj_set_style_border_color(btn_del, lv_color_hex(0x4a5568), 0);
+        /* DEL button: floating at top-right corner of screen (in header row) */
+        lv_obj_t *scr = lv_scr_act();
+        btn_del = lv_button_create(scr);
+        lv_obj_set_size(btn_del, 54, 36); /* Same size as back button */
+        lv_obj_set_style_bg_opa(btn_del, 0, 0); /* Transparent to blend with header */
+        lv_obj_set_style_bg_color(btn_del, lv_color_hex(0x1a202c), 0);
+        lv_obj_set_style_border_width(btn_del, 0, 0); /* No border */
         lv_obj_set_style_radius(btn_del, 0, 0);
         lv_obj_set_style_pad_all(btn_del, 0, 0);
-        lv_obj_set_pos(btn_del, (int32_t)parent_width - 54, 0);
+        
+        int scr_width = lv_obj_get_width(scr);
+        lv_obj_set_pos(btn_del, scr_width - 54, 0); /* Align to top right */
         lv_obj_set_style_margin_all(btn_del, 0, 0);
         lv_obj_t *del_label = lv_label_create(btn_del);
         lv_label_set_text(del_label, LV_SYMBOL_BACKSPACE);
@@ -647,14 +658,19 @@ void ui_mnemonic_init(lv_obj_t *lv_parent, size_t parent_width, size_t parent_he
 
 void ui_mnemonic_destroy(void)
 {
-    if (current_page != NULL)
+    if (lvgl_port_lock(0))
     {
-        if (lvgl_port_lock(0))
+        if (current_page != NULL)
         {
             lv_obj_del(current_page);
-            lvgl_port_unlock();
+            current_page = NULL;
         }
-        current_page = NULL;
+        if (btn_del != NULL)
+        {
+            lv_obj_del(btn_del);
+            btn_del = NULL;
+        }
+        lvgl_port_unlock();
     }
     ALLOC_UTILS_FREE_MEMORY(alloc_utils_memory_struct_pointer);
 

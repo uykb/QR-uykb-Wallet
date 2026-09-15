@@ -435,26 +435,51 @@ static void del_btn_event_handler(lv_event_t *e)
     }
 }
 
+static lv_point_t swipe_start = {0, 0};
+static bool swipe_in_progress = false;
+
 static void gesture_event_handler(lv_event_t *e)
 {
     lv_event_code_t code = lv_event_get_code(e);
-    if (code == LV_EVENT_GESTURE)
+
+    if (code == LV_EVENT_PRESSED)
     {
-        lv_dir_t dir = lv_indev_get_gesture_dir(lv_event_get_indev(e));
-        size_t total_pages = (cue_letter_len + 5) / 6;
-        if (total_pages > 1)
+        lv_indev_t *indev = lv_event_get_indev(e);
+        if (indev)
         {
-            if (dir == LV_DIR_LEFT)
-            {
-                page_idx = (page_idx + 1) % total_pages;
-                update_keyboard_button();
-            }
-            else if (dir == LV_DIR_RIGHT)
-            {
-                page_idx = (page_idx > 0) ? (page_idx - 1) : (total_pages - 1);
-                update_keyboard_button();
-            }
+            lv_indev_get_point(indev, &swipe_start);
+            swipe_in_progress = true;
         }
+    }
+    else if (code == LV_EVENT_RELEASED)
+    {
+        if (!swipe_in_progress) return;
+        swipe_in_progress = false;
+
+        lv_indev_t *indev = lv_event_get_indev(e);
+        if (indev == NULL) return;
+
+        lv_point_t swipe_end = {0, 0};
+        lv_indev_get_point(indev, &swipe_end);
+
+        int32_t dx = swipe_end.x - swipe_start.x;
+        int32_t dy = swipe_end.y - swipe_start.y;
+
+        /* Only trigger on horizontal swipe with enough distance, not a tap */
+        if (LV_ABS(dx) < 30 || LV_ABS(dx) < LV_ABS(dy) * 2) return;
+
+        size_t total_pages = (cue_letter_len + 5) / 6;
+        if (total_pages <= 1) return;
+
+        if (dx < 0) /* swipe left = next page */
+        {
+            page_idx = (page_idx + 1) % total_pages;
+        }
+        else /* swipe right = prev page */
+        {
+            page_idx = (page_idx > 0) ? (page_idx - 1) : (total_pages - 1);
+        }
+        update_keyboard_button();
     }
 }
 
@@ -589,8 +614,12 @@ void ui_mnemonic_init(lv_obj_t *lv_parent, size_t parent_width, size_t parent_he
         page_idx = 0;
         update_keyboard_button();
         lv_obj_add_event_cb(keyboard, phrase_input_handler, LV_EVENT_CLICKED, NULL);
-        lv_obj_add_event_cb(keyboard, gesture_event_handler, LV_EVENT_GESTURE, NULL);
-        lv_obj_add_event_cb(current_page, gesture_event_handler, LV_EVENT_GESTURE, NULL);
+        /* Swipe detection via press/release on keyboard */
+        lv_obj_add_event_cb(keyboard, gesture_event_handler, LV_EVENT_PRESSED, NULL);
+        lv_obj_add_event_cb(keyboard, gesture_event_handler, LV_EVENT_RELEASED, NULL);
+        /* Also detect on main page background for swipes that miss the buttons */
+        lv_obj_add_event_cb(current_page, gesture_event_handler, LV_EVENT_PRESSED, NULL);
+        lv_obj_add_event_cb(current_page, gesture_event_handler, LV_EVENT_RELEASED, NULL);
 
         lvgl_port_unlock();
     }

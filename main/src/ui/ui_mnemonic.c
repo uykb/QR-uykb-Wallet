@@ -22,13 +22,6 @@
 /**********************
  *  STATIC VARIABLES
  **********************/
-static const char *btnm_map[] = {
-    "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "\n",
-    "A", "S", "D", "F", "G", "H", "J", "K", "L", "\n",
-    "Z", "X", "C", "V", "B", "N", "M", LV_SYMBOL_BACKSPACE, ""};
-/* btnm_map index of letters */
-static const uint8_t btnm_map_index[] = {
-    10, 23, 21, 12, 2, 13, 14, 15, 7, 16, 17, 18, 25, 24, 8, 9, 0, 3, 11, 4, 6, 22, 1, 20, 5, 19};
 static const char **phrases;
 static size_t phrases_len;
 static alloc_utils_memory_struct *alloc_utils_memory_struct_pointer;
@@ -123,6 +116,7 @@ static void msgbox_retry_event_handler(lv_event_t *e)
         /* Reset phrase input to start over */
         phrases_len = 0;
         current_input[0] = '\0';
+        sel_idx = 0;
         lv_obj_clean(content);
         update_keyboard_button();
 
@@ -142,6 +136,7 @@ static void phrase_choose_event_handler(lv_event_t *e)
                 phrases[phrases_len] = item_arg;
                 phrases_len++;
                 current_input[0] = '\0';
+                sel_idx = 0;
                 {
                     lv_obj_t *obj = lv_button_create(content);
                     lv_obj_remove_flag(obj, LV_OBJ_FLAG_CLICKABLE);
@@ -257,6 +252,13 @@ static void phrase_choose_event_handler(lv_event_t *e)
         send_mnemonic_confirm_event();
     }
 }
+static const char *letter_strs[26] = {
+    "A", "B", "C", "D", "E", "F", "G", "H", "I", "J",
+    "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T",
+    "U", "V", "W", "X", "Y", "Z"};
+static const char *dynamic_btnm_map[10];
+static size_t page_idx = 0;
+
 static void update_keyboard_button()
 {
     if (lvgl_port_lock(0))
@@ -292,29 +294,43 @@ static void update_keyboard_button()
                 break;
             }
         }
-        char _index;
-        bool _disabled;
-        for (size_t i = 0; i < sizeof(btnm_map_index); i++)
+        if (cue_from != -1 && cue_to == -1)
         {
-            _index = btnm_map_index[i];
-            _disabled = true;
-            for (size_t j = 0; j < cue_letter_len; j++)
+            cue_to = BIP39_WORDLIST_LEN - 1;
+        }
+
+        size_t total_pages = (cue_letter_len + 5) / 6;
+        if (total_pages == 0) total_pages = 1;
+        if (page_idx >= total_pages)
+        {
+            page_idx = 0;
+        }
+
+        size_t start = page_idx * 6;
+        size_t count = (start < cue_letter_len) ? (cue_letter_len - start) : 0;
+        if (count > 6) count = 6;
+
+        size_t map_i = 0;
+        if (count == 0)
+        {
+            dynamic_btnm_map[0] = "";
+        }
+        else
+        {
+            for (size_t i = 0; i < count; i++)
             {
-                if (cue_letter[j] == 'a' + i)
+                char c = cue_letter[start + i];
+                dynamic_btnm_map[map_i++] = (c >= 'a' && c <= 'z') ? letter_strs[c - 'a'] : "?";
+                if (i == 2 && count > 3)
                 {
-                    _disabled = false;
-                    break;
+                    dynamic_btnm_map[map_i++] = "\n";
                 }
             }
-            if (_disabled)
-            {
-                lv_buttonmatrix_set_button_ctrl(keyboard, _index, LV_BUTTONMATRIX_CTRL_DISABLED);
-            }
-            else
-            {
-                lv_buttonmatrix_clear_button_ctrl(keyboard, _index, LV_BUTTONMATRIX_CTRL_DISABLED);
-            }
+            dynamic_btnm_map[map_i] = "";
         }
+
+        lv_buttonmatrix_set_map(keyboard, dynamic_btnm_map);
+
         lv_obj_t *child;
         while ((child = lv_obj_get_child(words, 0)))
         {
@@ -345,6 +361,7 @@ static void update_keyboard_button()
         lvgl_port_unlock();
     }
 }
+
 static void phrase_input_handler(lv_event_t *e)
 {
     lv_event_code_t code = lv_event_get_code(e);
@@ -353,46 +370,84 @@ static void phrase_input_handler(lv_event_t *e)
     {
         lvgl_port_lock(0);
         uint32_t id = lv_buttonmatrix_get_selected_button(obj);
-        lvgl_port_unlock();
-        if (id < 26 /* A~Z */)
+        if (id == LV_BUTTONMATRIX_BUTTON_NONE)
         {
-            lvgl_port_lock(0);
-            const char *txt = lv_buttonmatrix_get_button_text(obj, id);
             lvgl_port_unlock();
-            char c = tolower(txt[0]);
-            current_input[strlen(current_input)] = c;
-            current_input[strlen(current_input) + 1] = '\0';
+            return;
+        }
+        const char *txt = lv_buttonmatrix_get_button_text(obj, id);
+        lvgl_port_unlock();
+
+        if (txt == NULL)
+        {
+            return;
+        }
+
+        if (strlen(txt) == 1 && txt[0] >= 'A' && txt[0] <= 'Z')
+        {
+            char c = tolower((unsigned char)txt[0]);
+            size_t len = strlen(current_input);
+            if (len < 19)
+            {
+                current_input[len] = c;
+                current_input[len + 1] = '\0';
+            }
+            page_idx = 0;
             update_keyboard_button();
         }
-        else if (id == 26 /* DEL */)
+    }
+}
+
+static void del_btn_event_handler(lv_event_t *e)
+{
+    if (lv_event_get_code(e) == LV_EVENT_CLICKED)
+    {
+        if (current_input[0] == '\0')
         {
-            if (current_input[0] == '\0')
+            if (phrases_len > 0)
             {
-                if (phrases_len > 0)
+                phrases_len--;
+                if (lvgl_port_lock(0))
                 {
-                    phrases_len--;
-                    if (lvgl_port_lock(0))
+                    size_t child_count = lv_obj_get_child_count(content);
+                    if (child_count > 0)
                     {
-                        // remove last item from `content`
-                        size_t child_count = lv_obj_get_child_count(content);
-                        if (child_count > 0)
-                        {
-                            lv_obj_t *child = lv_obj_get_child(content, child_count - 1);
-                            lv_obj_del(child);
-
-                            // scroll `content` to bottom
-                            lv_obj_scroll_to_y(content, 999, LV_ANIM_ON);
-                        }
-
-                        lvgl_port_unlock();
+                        lv_obj_t *child = lv_obj_get_child(content, child_count - 1);
+                        lv_obj_del(child);
+                        lv_obj_scroll_to_y(content, 999, LV_ANIM_ON);
                     }
+                    lvgl_port_unlock();
                 }
             }
-            else
+        }
+        else
+        {
+            current_input[strlen(current_input) - 1] = '\0';
+        }
+        page_idx = 0;
+        update_keyboard_button();
+    }
+}
+
+static void gesture_event_handler(lv_event_t *e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    if (code == LV_EVENT_GESTURE)
+    {
+        lv_dir_t dir = lv_indev_get_gesture_dir(lv_event_get_indev(e));
+        size_t total_pages = (cue_letter_len + 5) / 6;
+        if (total_pages > 1)
+        {
+            if (dir == LV_DIR_LEFT)
             {
-                current_input[strlen(current_input) - 1] = '\0';
+                page_idx = (page_idx + 1) % total_pages;
+                update_keyboard_button();
             }
-            update_keyboard_button();
+            else if (dir == LV_DIR_RIGHT)
+            {
+                page_idx = (page_idx > 0) ? (page_idx - 1) : (total_pages - 1);
+                update_keyboard_button();
+            }
         }
     }
 }
@@ -402,18 +457,6 @@ static void phrase_input_handler(lv_event_t *e)
  **********************/
 void ui_mnemonic_init(lv_obj_t *lv_parent, size_t parent_width, size_t parent_height, lv_obj_t *_event_target, int _mnemonic_type)
 {
-    /*
-        UI:
-            ┌───────────────────┐
-            │                   │
-            │     content       │
-            │                   │
-            ├───────────────────┤
-            │ words             │
-            ├───────────────────┤
-            │     keyboard      │
-            └───────────────────┘
-     */
     mnemonic_type = _mnemonic_type;
     if (mnemonic_type != 12 && mnemonic_type != 24)
     {
@@ -429,8 +472,8 @@ void ui_mnemonic_init(lv_obj_t *lv_parent, size_t parent_width, size_t parent_he
     if (lvgl_port_lock(0))
     {
         /* get parent size */
-        int words_height = parent_height * 0.12;
-        int keyboard_height = parent_width * 0.45;
+        int words_height = 42;
+        int keyboard_height = parent_height * 0.48;
 
         int32_t *col_dsc;
         ALLOC_UTILS_MALLOC_MEMORY(alloc_utils_memory_struct_pointer, col_dsc, sizeof(int32_t) * 2);
@@ -450,7 +493,6 @@ void ui_mnemonic_init(lv_obj_t *lv_parent, size_t parent_width, size_t parent_he
         lv_obj_set_style_grid_row_dsc_array(current_page, row_dsc, 0);
         lv_obj_set_size(current_page, parent_width, parent_height);
         lv_obj_set_layout(current_page, LV_LAYOUT_GRID);
-        // lv_obj_set_style_bg_color(current_page, lv_color_hex(0x00ff00), 0);
         NO_BODER_PADDING_STYLE(current_page);
 
         /* content */
@@ -468,27 +510,41 @@ void ui_mnemonic_init(lv_obj_t *lv_parent, size_t parent_width, size_t parent_he
         lv_obj_set_grid_cell(content, LV_GRID_ALIGN_STRETCH, 0, 1,
                              LV_GRID_ALIGN_STRETCH, 0, 1);
 
-        /* words */
-        words = lv_obj_create(current_page);
-
-        NO_BODER_PADDING_STYLE(words);
-
-        lv_obj_set_size(words, lv_pct(100), lv_pct(100));
-        lv_obj_align(words, LV_ALIGN_TOP_MID, 0, 5);
-        lv_obj_set_flex_align(words, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-        // lv_obj_set_flex_flow(words, LV_FLEX_FLOW_ROW);
-        lv_obj_set_scrollbar_mode(words, LV_SCROLLBAR_MODE_OFF);
-        lv_obj_set_grid_cell(words, LV_GRID_ALIGN_STRETCH, 0, 1,
+        /* words_bar container (words list + top-right DEL button) */
+        lv_obj_t *words_bar = lv_obj_create(current_page);
+        NO_BODER_PADDING_STYLE(words_bar);
+        lv_obj_set_size(words_bar, lv_pct(100), lv_pct(100));
+        lv_obj_set_flex_flow(words_bar, LV_FLEX_FLOW_ROW);
+        lv_obj_set_flex_align(words_bar, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+        lv_obj_set_grid_cell(words_bar, LV_GRID_ALIGN_STRETCH, 0, 1,
                              LV_GRID_ALIGN_STRETCH, 1, 1);
-        lv_obj_set_style_pad_left(words, 5, 0);
+        lv_obj_set_style_pad_left(words_bar, 5, 0);
+        lv_obj_set_style_pad_right(words_bar, 5, 0);
+
+        /* words */
+        words = lv_obj_create(words_bar);
+        NO_BODER_PADDING_STYLE(words);
+        lv_obj_set_flex_grow(words, 1);
+        lv_obj_set_height(words, lv_pct(100));
+        lv_obj_set_flex_flow(words, LV_FLEX_FLOW_ROW);
+        lv_obj_set_flex_align(words, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+        lv_obj_set_scrollbar_mode(words, LV_SCROLLBAR_MODE_OFF);
+
+        /* btn_del (top right Backspace button) */
+        lv_obj_t *btn_del = lv_button_create(words_bar);
+        lv_obj_set_size(btn_del, 45, 32);
+        lv_obj_set_style_bg_color(btn_del, lv_color_hex(0x4a5568), 0);
+        lv_obj_set_style_radius(btn_del, 4, 0);
+        lv_obj_set_style_pad_all(btn_del, 0, 0);
+        lv_obj_t *del_label = lv_label_create(btn_del);
+        lv_label_set_text(del_label, LV_SYMBOL_BACKSPACE);
+        lv_obj_set_style_text_color(del_label, lv_color_hex(0xffffff), 0);
+        lv_obj_center(del_label);
+        lv_obj_add_event_cb(btn_del, del_btn_event_handler, LV_EVENT_CLICKED, NULL);
 
         /* keyboard */
-
         keyboard = lv_btnmatrix_create(current_page);
-        lv_btnmatrix_set_map(keyboard, btnm_map);
         NO_BODER_PADDING_STYLE(keyboard);
-
-        lv_buttonmatrix_set_button_width(keyboard, 26, 2); /*Make "DEL" *2 wide*/
         lv_obj_align(keyboard, LV_ALIGN_BOTTOM_MID, 0, 0);
         lv_obj_set_grid_cell(keyboard, LV_GRID_ALIGN_STRETCH, 0, 1,
                              LV_GRID_ALIGN_STRETCH, 2, 1);
@@ -498,8 +554,11 @@ void ui_mnemonic_init(lv_obj_t *lv_parent, size_t parent_width, size_t parent_he
         /*max to 20 letters */
         ALLOC_UTILS_MALLOC_MEMORY(alloc_utils_memory_struct_pointer, current_input, sizeof(char) * 20);
         memset(current_input, 0, sizeof(char) * 20);
+        page_idx = 0;
         update_keyboard_button();
         lv_obj_add_event_cb(keyboard, phrase_input_handler, LV_EVENT_CLICKED, NULL);
+        lv_obj_add_event_cb(keyboard, gesture_event_handler, LV_EVENT_GESTURE, NULL);
+        lv_obj_add_event_cb(current_page, gesture_event_handler, LV_EVENT_GESTURE, NULL);
 
         lvgl_port_unlock();
     }
